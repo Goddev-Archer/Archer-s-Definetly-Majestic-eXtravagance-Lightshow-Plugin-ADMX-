@@ -1,0 +1,1263 @@
+{
+  "meta": {
+    "format_version": "5.0",
+    "model_format": "free",
+    "box_uv": false
+  },
+  "name": "admx_blinder_2lite",
+  "model_identifier": "",
+  "visible_box": [
+    1,
+    1,
+    0
+  ],
+  "variable_placeholders": "",
+  "variable_placeholder_buttons": [],
+  "timeline_setups": [],
+  "unhandled_root_fields": {},
+  "resolution": {
+    "width": 64,
+    "height": 64
+  },
+  "elements": [
+    {
+      "name": "blinder_mount_clamp",
+      "box_uv": false,
+      "rescale": false,
+      "locked": false,
+      "light_emission": 0,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        -2.0,
+        0.0,
+        -1.5
+      ],
+      "to": [
+        2.0,
+        0.75,
+        1.5
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        0.0,
+        0.375,
+        0.0
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "9c517184-1cc5-4bf8-a6f5-fa145bea8f25"
+    },
+    {
+      "name": "blinder_yoke_crossbar",
+      "box_uv": false,
+      "rescale": false,
+      "locked": false,
+      "light_emission": 0,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        -5.75,
+        0.75,
+        -0.75
+      ],
+      "to": [
+        5.75,
+        1.5,
+        0.75
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        0.0,
+        1.125,
+        0.0
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "dc77f8bd-1786-42be-965a-f7d3a08b54fe"
+    },
+    {
+      "name": "blinder_yoke_arm_left",
+      "box_uv": false,
+      "rescale": false,
+      "locked": false,
+      "light_emission": 0,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        -5.75,
+        1.5,
+        -0.75
+      ],
+      "to": [
+        -5.0,
+        6.25,
+        0.75
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        -5.375,
+        3.875,
+        0.0
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "625078e5-81c7-435f-a233-a4f46a157230"
+    },
+    {
+      "name": "blinder_yoke_arm_right",
+      "box_uv": false,
+      "rescale": false,
+      "locked": false,
+      "light_emission": 0,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        5.0,
+        1.5,
+        -0.75
+      ],
+      "to": [
+        5.75,
+        6.25,
+        0.75
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        5.375,
+        3.875,
+        0.0
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            16,
+            0,
+            32,
+            16
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "4fa27187-6c66-4c4c-8d70-3a978d031e1c"
+    },
+    {
+      "name": "blinder_tilt_lock_left",
+      "box_uv": false,
+      "rescale": false,
+      "locked": false,
+      "light_emission": 0,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        -6.25,
+        4.75,
+        -0.5
+      ],
+      "to": [
+        -5.75,
+        5.75,
+        0.5
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        -6.0,
+        5.25,
+        0.0
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "02f51ff7-0b8f-4b46-a191-5b772baf8f69"
+    },
+    {
+      "name": "blinder_tilt_lock_right",
+      "box_uv": false,
+      "rescale": false,
+      "locked": false,
+      "light_emission": 0,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        5.75,
+        4.75,
+        -0.5
+      ],
+      "to": [
+        6.25,
+        5.75,
+        0.5
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        6.0,
+        5.25,
+        0.0
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "132da6af-de08-4e61-a4db-9f7d12c15d93"
+    },
+    {
+      "name": "blinder_pod_chassis",
+      "box_uv": false,
+      "rescale": false,
+      "locked": false,
+      "light_emission": 0,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        -5.0,
+        2.25,
+        -2.5
+      ],
+      "to": [
+        5.0,
+        8.75,
+        2.0
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        0.0,
+        5.5,
+        -0.25
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "569e0058-7b7c-4b25-b493-b408fa0ce0a4"
+    },
+    {
+      "name": "blinder_rear_heatsink",
+      "box_uv": false,
+      "rescale": false,
+      "locked": false,
+      "light_emission": 0,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        -3.5,
+        3.0,
+        2.0
+      ],
+      "to": [
+        3.5,
+        8.0,
+        3.25
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        0.0,
+        5.5,
+        2.625
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            32,
+            0,
+            48,
+            16
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "750706ba-b7ea-43a1-8a50-0c4e81d71709"
+    },
+    {
+      "name": "blinder_dmx_panel",
+      "box_uv": false,
+      "rescale": false,
+      "locked": false,
+      "light_emission": 0,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        -2.0,
+        3.75,
+        3.25
+      ],
+      "to": [
+        2.0,
+        6.25,
+        3.5
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        0.0,
+        5.0,
+        3.375
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            48,
+            0,
+            64,
+            16
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            48,
+            0,
+            64,
+            16
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            48,
+            0,
+            64,
+            16
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            48,
+            0,
+            64,
+            16
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            48,
+            0,
+            64,
+            16
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            48,
+            0,
+            64,
+            16
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "fe47f68e-8be2-47f5-914f-2cca7892c914"
+    },
+    {
+      "name": "blinder_lamp_bezel_left",
+      "box_uv": false,
+      "rescale": false,
+      "locked": false,
+      "light_emission": 0,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        -4.5,
+        2.75,
+        -3.75
+      ],
+      "to": [
+        -0.5,
+        8.25,
+        -2.5
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        -2.5,
+        5.5,
+        -3.125
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "5f09b85f-2529-44f9-841b-32cc9eb34bce"
+    },
+    {
+      "name": "blinder_lamp_lens_left",
+      "box_uv": false,
+      "rescale": false,
+      "locked": false,
+      "light_emission": 15,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        -4.0,
+        3.25,
+        -4.0
+      ],
+      "to": [
+        -1.0,
+        7.75,
+        -3.75
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        -2.5,
+        5.5,
+        -3.875
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 1
+        },
+        "east": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "fc973d8f-ce40-4aa0-9204-9cf9a843bd59"
+    },
+    {
+      "name": "blinder_lamp_bezel_right",
+      "box_uv": false,
+      "rescale": false,
+      "locked": false,
+      "light_emission": 0,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        0.5,
+        2.75,
+        -3.75
+      ],
+      "to": [
+        4.5,
+        8.25,
+        -2.5
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        2.5,
+        5.5,
+        -3.125
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "5d4a4c48-c636-405b-8657-ac27e5984ab0"
+    },
+    {
+      "name": "blinder_lamp_lens_right",
+      "box_uv": false,
+      "rescale": false,
+      "locked": false,
+      "light_emission": 15,
+      "render_order": "default",
+      "allow_mirror_modeling": true,
+      "from": [
+        1.0,
+        3.25,
+        -4.0
+      ],
+      "to": [
+        4.0,
+        7.75,
+        -3.75
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        2.5,
+        5.5,
+        -3.875
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": 1
+        },
+        "east": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "ad3641c2-3175-4c64-8983-9e68cbcc7ef2"
+    },
+    {
+      "name": "blinder_origin",
+      "position": [
+        0.0,
+        5.5,
+        -4.1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "ignore_inherited_scale": false,
+      "type": "locator",
+      "uuid": "7b88e2c1-100e-4385-b744-7917662412bb"
+    }
+  ],
+  "groups": [
+    {
+      "name": "blinder_root",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "uuid": "fa010434-b4fb-4720-8270-f36075652203",
+      "export": true,
+      "mirror_uv": false,
+      "isOpen": true,
+      "locked": false,
+      "visibility": true,
+      "autouv": 0
+    }
+  ],
+  "outliner": [
+    {
+      "name": "blinder_root",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "uuid": "fa010434-b4fb-4720-8270-f36075652203",
+      "export": true,
+      "mirror_uv": false,
+      "isOpen": true,
+      "locked": false,
+      "visibility": true,
+      "autouv": 0,
+      "children": [
+        "9c517184-1cc5-4bf8-a6f5-fa145bea8f25",
+        "dc77f8bd-1786-42be-965a-f7d3a08b54fe",
+        "625078e5-81c7-435f-a233-a4f46a157230",
+        "4fa27187-6c66-4c4c-8d70-3a978d031e1c",
+        "02f51ff7-0b8f-4b46-a191-5b772baf8f69",
+        "132da6af-de08-4e61-a4db-9f7d12c15d93",
+        "569e0058-7b7c-4b25-b493-b408fa0ce0a4",
+        "750706ba-b7ea-43a1-8a50-0c4e81d71709",
+        "fe47f68e-8be2-47f5-914f-2cca7892c914",
+        "5f09b85f-2529-44f9-841b-32cc9eb34bce",
+        "fc973d8f-ce40-4aa0-9204-9cf9a843bd59",
+        "5d4a4c48-c636-405b-8657-ac27e5984ab0",
+        "ad3641c2-3175-4c64-8983-9e68cbcc7ef2",
+        "7b88e2c1-100e-4385-b744-7917662412bb"
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "uuid": "10466b66-5041-4f48-96bf-f1f78b92b484",
+      "name": "housing",
+      "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAEfUlEQVR4nO2YuW8TQRTG8weQxDgb41xOgnM490HuOI5zch91mnRINDRpECVNGlqEEEKI3C1XQoACQogQiiIUIUTFXQAB/oWH3spvNXY2652ZtWZlb/Gk1X4u5v3eN/ONN08LlIFMVYUbpSoQrJAqvxaUqjxsorG1R6gIQG/0OPTHTsJg/DT0DE5C39AJGBg+Bd0DE5YaAejoHoLm9j5o7RyA9q4oNLX1QktHP7QdG7TUCEBpRViokgCEqiP6gspCtVBRVQ+VRxuguqYJyivrDtQIwPD4eZi+OAPRkTMQGzsH8YkLesNDo2d1DRtmNfwtagTATrNmmqMA0jVrphEAnqmzGgE4lO8TKkcB2J06qxEAO1M30wiAiP1RcxQAr/1RIwA8U2c1AiBif9RYACWXd5MK381cnU0qSwC89keNAPBMndWc3AJ2Aeyth/TaB4DX/qgRAN7TnzQCIGJ/1BwFwGt/1AgAz9RZzckYlAYgE4O8pz9prtoCMjHIe/qTRgBE7I+ao4egTAyK3AJRy5oY5D39SXPVRUgmBnGyeL21ew7gb1EjACL2R81RADIxKHILRM3JGJQCkNN/hyPNXSBT16ZCUhUMlkvV1KUrUqUDOFx0BIqKS6DAp4HPH9DJ5BcWQeHhYkuNAOzcHIbd2yPw4e4YbN+IwbtbcXh/ZxQ+3hu31AjA32caBEtDRv17rsGvNQ321pPf/3mqGZr+LgFg4eEGLD3ehJW1LZh/8BIWH72C5dXXMHf/haVmALDTrJlGAOw0a6YZDmCa/Lmqwe8nmt4s+x4hkWa8TwCw06yZZgDgmTqrEQCeqbNaKgCaul1HEABqKNIZ5QJhABCxP2oEILXZ69Nh00oFwQKgqWOzdh1BAETsj5oBQMT+qBEAdrLUrN9XkFT0nnUEAaCpY7Nsk+kcQQBE7I+aAUDE/qgRAHayZs2zEFi3EICkgy1RthyRADCy+BXGlr/rWyC+8AVGl77B+MoPGJ7/bGixuU/7NAOAiP1RIwCp9rcCwLqFACQdbKUh+45IALDTrJmWkRhMB8AsBi2jzsoRCQA8U2e1jMRgOgBWMWgadRaOIADUEG4BHhAZicF0h+BBMWj78sM4ggCI2B8118Qg1+WHcQQBELE/ahmJQZ7rcGoMcl+HEwCoIdwCPCAyEoM8INgYFLoOp8Qgj/0zFoM8IMxSgOs67FQM5vTf4d7oJMjUbCAgVfiFSWXpAAoK/fqnp4aWbv2ZPj3hM32Wwmf6LIXP+BmNAGyEw7BVWwtv6+thp6EBNmtq4E1dHWxHIpaaawBgs9gQNYsg2G9wB2kEwE6zZpprANhp1kwjADxTZzXXAEBLU7P4TM2m2xoEQMT+qLkGgIj9USMAIvZHzTUAROyPGgEQsT9qrgFgdsJjs+m2BgEQsT9qrgEgYn8vBrMpBnkuP+zWyJoYFLG/F4PZFIM8lx92a2RNDIrYP6tiMKf/DqtegOryAKhegOryAKhegOryAKhegOryAKhegOryAKhegOryAKhegOryAKhegOrKeQD/AcUjHY5Kt2mqAAAAAElFTkSuQmCC",
+      "path": "",
+      "width": 64,
+      "height": 64,
+      "uv_width": 64,
+      "uv_height": 64,
+      "group": "",
+      "pbr_channel": "color",
+      "wrap_mode": "limited",
+      "folder": "",
+      "namespace": "",
+      "id": "0",
+      "scope": 0,
+      "particle": false,
+      "use_as_default": false,
+      "layers_enabled": false,
+      "sync_to_project": "",
+      "file_format": "png",
+      "render_mode": "default",
+      "render_sides": "auto",
+      "fps": 7,
+      "force_translucent": false,
+      "frame_time": 1,
+      "frame_order_type": "loop",
+      "frame_order": "",
+      "frame_interpolate": false,
+      "visible": true,
+      "internal": true,
+      "saved": false
+    },
+    {
+      "uuid": "2c49dff9-0fff-41a6-999e-ac6c9889dc9c",
+      "name": "emissive",
+      "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABbElEQVR4nO3XPU7CcBzH4f9oDFPTMDV1MCEsbJ7Bk3gID8FxOA6LC7OLC8vfGNHYpi/QUp+mZXjCwvD5fcNrOOzS2Ee6zHrZJIteknzdS/g6IllmnfwMkD2sOmkaYL+5Lxh8gMVjfpGhBigf3jbEpAb4e2jcpgV1I1Qe9RYrXTRAiK8FbQPcrZ5aNQ3QdHzTCIMMUD6+aoQ+A6w/XmoHqDu+PMLVBwj7+O107Hs8FvwOcXpe1QDhEBsf6waoPP64K6oZYVQDdH0LTGaAc18Bkx3g3FdAfM7HN8B/fgiWBxjFh+Dta/D2Q8gPcK2fwp0GmPWfoVn/HQ5xG2eNB2g8QOMBGg/QeIDGAzQeoPEAjQdoPEDjARoP0HiAxgM0HqDxAI0HaDxA4wEaD9B4gMYDNB6g8QCNB2g8QOMBGg/QeIDGAzQeoPEAjQdoPEDjARoP0HiAxgM0HqDxAI0HaDxA4wEaD9B4gMYDNB6AfQJbKaIMLFRvcQAAAABJRU5ErkJggg==",
+      "path": "",
+      "width": 64,
+      "height": 64,
+      "uv_width": 64,
+      "uv_height": 64,
+      "group": "",
+      "pbr_channel": "color",
+      "wrap_mode": "limited",
+      "folder": "",
+      "namespace": "",
+      "id": "1",
+      "scope": 0,
+      "particle": false,
+      "use_as_default": false,
+      "layers_enabled": false,
+      "sync_to_project": "",
+      "file_format": "png",
+      "render_mode": "emissive",
+      "render_sides": "auto",
+      "fps": 7,
+      "force_translucent": false,
+      "frame_time": 1,
+      "frame_order_type": "loop",
+      "frame_order": "",
+      "frame_interpolate": false,
+      "visible": true,
+      "internal": true,
+      "saved": false
+    }
+  ],
+  "animations": []
+}

@@ -1,0 +1,34 @@
+name: ADMX
+version: 1.0.0-SNAPSHOT
+main: de.archer.admx.AdmxPlugin
+api-version: '1.21'
+authors:
+  - Archer
+description: Archer's Definetly Majestic eXtravagance Lightshow-Plugin
+libraries:
+  - org.xerial:sqlite-jdbc:3.49.1.0
+permissions:
+  admx.admin:
+    description: Vollzugriff auf alle ADMX-Befehle, Platzierung, Steuerpulte und Datenbank-Aktionen
+    default: op
+    children:
+      admx.place: true
+      admx.remove: true
+      admx.control: true
+      admx.console: true
+      admx.safe: true
+  admx.place:
+    description: Erlaubt das Platzieren von ADMX-Bühnengeräten per Wand oder Befehl
+    default: op
+  admx.remove:
+    description: Erlaubt das Entfernen platzierter ADMX-Geräte
+    default: op
+  admx.control:
+    description: Erlaubt das Verändern von DMX-Gruppenparametern und Szenen-Cues
+    default: op
+  admx.console:
+    description: Erlaubt das Öffnen und Aufstellen des Chest-UI und 3D-Hologramm-Steuerpults
+    default: op
+  admx.safe:
+    description: Erlaubt jedem Spieler den eigenen Photosensitivitäts-Schutzmodus (/admx safe) umzuschalten
+    default: true

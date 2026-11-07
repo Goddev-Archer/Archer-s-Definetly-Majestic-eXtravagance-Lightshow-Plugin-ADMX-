@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="de.archer.admx.render.fog.FogRoomVolumeTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-28T20:36:12.973Z" hostname="DESKTOP-0001" time="0.034">
+  <properties/>
+  <testcase name="testWaveHeightCoplanarityAndLowFogDoesNotClimbHills()" classname="de.archer.admx.render.fog.FogRoomVolumeTest" time="0.007"/>
+  <testcase name="testLowFogStaysNearFloorWhileHazeFillsHeight()" classname="de.archer.admx.render.fog.FogRoomVolumeTest" time="0.002"/>
+  <testcase name="testLightScatteringRefractsColorAndBoostsAlpha()" classname="de.archer.admx.render.fog.FogRoomVolumeTest" time="0.002"/>
+  <testcase name="testClosedRoomRespectsWalls()" classname="de.archer.admx.render.fog.FogRoomVolumeTest" time="0.002"/>
+  <testcase name="testOpenFieldCapsAt30BlocksAndMarksBoundary()" classname="de.archer.admx.render.fog.FogRoomVolumeTest" time="0.018"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

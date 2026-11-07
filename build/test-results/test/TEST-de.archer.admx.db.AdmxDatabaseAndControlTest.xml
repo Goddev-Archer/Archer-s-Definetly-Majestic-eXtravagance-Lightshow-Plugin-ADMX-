@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="de.archer.admx.db.AdmxDatabaseAndControlTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-28T20:36:12.568Z" hostname="DESKTOP-0001" time="0.259">
+  <properties/>
+  <testcase name="testUniqueMemberPhaseFanningAndSceneSequencer()" classname="de.archer.admx.db.AdmxDatabaseAndControlTest" time="0.02"/>
+  <testcase name="testSqliteWalDatabaseGroupsAndSceneCuesIntegrity()" classname="de.archer.admx.db.AdmxDatabaseAndControlTest" time="0.229"/>
+  <testcase name="testSecurityAuditFixesCrcLocaleAndSnapshotValidation()" classname="de.archer.admx.db.AdmxDatabaseAndControlTest" time="0.005"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+]]></system-err>
+</testsuite>

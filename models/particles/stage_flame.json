@@ -1,0 +1,96 @@
+{
+	"format_version": "1.10.0",
+	"particle_effect": {
+		"description": {
+			"identifier": "admx:stage_flame",
+			"basic_render_parameters": {
+				"material": "particles_add",
+				"texture": "textures/particle/particles"
+			}
+		},
+		"components": {
+			"minecraft:particle_lifetime_expression": {
+				"max_lifetime": "math.random(0.4, 0.85)"
+			},
+			"minecraft:particle_initial_speed": "math.random(4, 6)",
+			"minecraft:particle_motion_dynamic": {
+				"linear_acceleration": [
+					0,
+					2,
+					0
+				],
+				"linear_drag_coefficient": 1.2
+			},
+			"minecraft:particle_appearance_billboard": {
+				"size": [
+					"(math.lerp(0.22, 0.06, variable.particle_age / variable.particle_lifetime)) * (1 + (variable.particle_random_3 - 0.5) * 0.2)",
+					"(math.lerp(0.22, 0.06, variable.particle_age / variable.particle_lifetime)) * (1 + (variable.particle_random_3 - 0.5) * 0.2)"
+				],
+				"facing_camera_mode": "lookat_xyz",
+				"uv": {
+					"texture_width": 128,
+					"texture_height": 128,
+					"uv": [
+						0,
+						24
+					],
+					"uv_size": [
+						8,
+						8
+					]
+				}
+			},
+			"minecraft:emitter_rate_steady": {
+				"spawn_rate": 55,
+				"max_particles": 59
+			},
+			"minecraft:emitter_lifetime_looping": {
+				"active_time": 3
+			},
+			"minecraft:emitter_shape_sphere": {
+				"offset": [
+					0,
+					0,
+					0
+				],
+				"radius": 0.06,
+				"direction": [
+					0,
+					-1,
+					0
+				]
+			},
+			"minecraft:particle_appearance_tinting": {
+				"color": {
+					"gradient": {
+						"0.00": [
+							1,
+							1,
+							0.8,
+							1
+						],
+						"0.33": [
+							1,
+							0.667,
+							0,
+							1
+						],
+						"0.67": [
+							1,
+							0.2,
+							0,
+							0.8
+						],
+						"1.00": [
+							0.267,
+							0.067,
+							0,
+							0
+						]
+					},
+					"interpolant": "variable.particle_age / variable.particle_lifetime"
+				}
+			}
+		}
+	}
+}

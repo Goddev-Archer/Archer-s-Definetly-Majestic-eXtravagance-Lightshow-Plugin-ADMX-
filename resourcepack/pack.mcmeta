@@ -1,0 +1,12 @@
+{
+    "pack":  {
+                 "pack_format":  97,
+                 "min_format":  15,
+                 "max_format":  99,
+                 "supported_formats":  {
+                                           "min_inclusive":  15,
+                                           "max_inclusive":  99
+                                       },
+                 "description":  "ADMX Stage Lighting Models (MC 26.3)"
+             }
+}

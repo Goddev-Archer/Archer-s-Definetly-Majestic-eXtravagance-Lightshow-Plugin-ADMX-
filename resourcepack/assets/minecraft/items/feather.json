@@ -1,0 +1,110 @@
+{
+    "model": {
+        "type": "minecraft:range_dispatch",
+        "property": "minecraft:custom_model_data",
+        "fallback": {
+            "type": "minecraft:model",
+            "model": "minecraft:item/feather"
+        },
+        "entries": [
+            {
+                "threshold": 10001,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/moving_head_base"
+                }
+            },
+            {
+                "threshold": 10002,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/moving_head_yoke"
+                }
+            },
+            {
+                "threshold": 10003,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/moving_head_head"
+                }
+            },
+            {
+                "threshold": 10004,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/laser_projector"
+                }
+            },
+            {
+                "threshold": 10005,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/moving_head_beam_head"
+                }
+            },
+            {
+                "threshold": 10006,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/moving_head_wash_head"
+                }
+            },
+            {
+                "threshold": 10007,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/blinder_2lite"
+                }
+            },
+            {
+                "threshold": 10008,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/strobe_bar"
+                }
+            },
+            {
+                "threshold": 10009,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/flame_projector"
+                }
+            },
+            {
+                "threshold": 10010,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/fog_machine"
+                }
+            },
+            {
+                "threshold": 10011,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/laser_head_base"
+                }
+            },
+            {
+                "threshold": 10012,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/laser_head_yoke"
+                }
+            },
+            {
+                "threshold": 10013,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/laser_head_head"
+                }
+            },
+            {
+                "threshold": 10014,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/low_fog_machine"
+                }
+            }
+        ]
+    }
+}

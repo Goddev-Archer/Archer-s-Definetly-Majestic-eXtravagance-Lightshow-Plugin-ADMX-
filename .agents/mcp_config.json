@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "blockbench": {
+      "serverUrl": "http://localhost:3000/bb-mcp",
+      "url": "http://localhost:3000/bb-mcp"
+    },
+    "bbmodel": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "github:jasonjgardner/blockbench-mcp-plugin#297a820",
+        "--root",
+        "c:/dev/Archer's Definetly Majestic eXtravagance Lightshow-Plugin (ADMX)/models"
+      ]
+    }
+  }
+}
