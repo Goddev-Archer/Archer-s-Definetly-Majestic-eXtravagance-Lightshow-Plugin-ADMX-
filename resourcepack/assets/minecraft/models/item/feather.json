@@ -87,6 +87,36 @@
                 "custom_model_data": 10014
             },
             "model": "admx:item/low_fog_machine"
+        },
+        {
+            "predicate": {
+                "custom_model_data": 10015
+            },
+            "model": "admx:item/dmx_console"
+        },
+        {
+            "predicate": {
+                "custom_model_data": 10016
+            },
+            "model": "admx:item/stairville_ddc6"
+        },
+        {
+            "predicate": {
+                "custom_model_data": 10017
+            },
+            "model": "admx:item/stairville_dmx_master"
+        },
+        {
+            "predicate": {
+                "custom_model_data": 10018
+            },
+            "model": "admx:item/behringer_wing"
+        },
+        {
+            "predicate": {
+                "custom_model_data": 10019
+            },
+            "model": "admx:item/yamaha_dm7"
         }
     ]
 }

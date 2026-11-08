@@ -8,6 +8,8 @@ limits:
   max-fixtures-per-world: 250
   # Maximale Anzahl an Nebelmaschinen (Kaltnebel / Raumnebel) pro Welt
   max-fog-machines-per-world: 12
+  # Maximale Anzahl an physisch platzierten 3D-DMX-Steuerpulten pro Welt
+  max-consoles-per-world: 32
   # Globales Hard-Limit für gleichzeitig vom EntityTracker verwaltete Display-Entities
   max-entities-total: 8000
   # Maximale Anzahl an Wellen-Zellen pro Nebelmaschine
@@ -38,3 +40,9 @@ artnet-bridge:
   max-clients: 5
   # Schutz vor Brute-Force: Maximale Fehlversuche vor 15-minütiger IP-Sperre
   rate-limit-max-attempts: 5
+  # Nativer Art-Net 4 UDP-Node (Port 6454) für direktes QLC+ / GrandMA / Chamsys Patching
+  udp-node-enabled: true
+  # Bind-Adresse für den lokalen Art-Net 4 UDP-Node (Standard: 127.0.0.1 gegen externes UDP-Spoofing)
+  udp-bind-host: "127.0.0.1"
+  # Ob der UDP-Node automatisch an 127.0.0.1:6454 zurücksenden soll (Standard: false, da QLC+ meist als Sender agiert)
+  udp-loopback-tx: false

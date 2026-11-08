@@ -50,6 +50,25 @@ Every agent or developer working on ADMX **must** enforce the invariants documen
 - **Rule (`SEC-10`):** Pin external MCP tooling in `.vscode/mcp.json` and `.agents/mcp_config.json` to explicit versions or commit SHAs.
 - **Rule (`SEC-11`):** Require `/admx clear confirm` before wiping all fixtures from the database.
 
+### 2.7 Native Art-Net 4, WebSocket Bridge & 3D DMX Console Security (`SEC-12` – `SEC-17`)
+- **Rule (`SEC-12` – Art-Net UDP Spoofing & `ArtPollReply` Amplification Defense):**
+  - Bind the native Art-Net 4 UDP node (`ArtNetUdpNode`, Port `6454`) to loopback (`127.0.0.1`) by default (`artnet-bridge.udp-bind-host`) so external WAN hosts cannot spoof unauthenticated UDP `OpDmx` frames.
+  - Rate-limit `ArtPollReply` (`239` bytes) responses to at most 1 reply per `2000 ms` per source IP (`MAX_TRACKED_POLL_IPS = 256`) to prevent UDP reflection/amplification abuse.
+- **Rule (`SEC-13` – WebSocket Frame Bombing / OOM & Write Synchronization):**
+  - Never allocate a buffer from an untrusted 64-bit WebSocket payload length header. Strictly enforce `MAX_INCOMING_FRAME_BYTES = 1024` (an `ArtDmx` packet is at most `530` bytes) and disconnect immediately on oversized frames or premature EOF (`-1`).
+  - Synchronize all socket writes (`sendPong` and `drainPendingFrames`) on a dedicated per-client `writeLock` so concurrent Pong and `OpDmx` frames never interleave or corrupt the TCP stream.
+- **Rule (`SEC-14` – Malformed `ArtDmx` Packet & Universe Allocation DoS):**
+  - Pre-allocate a fixed array of `MAX_UNIVERSES = 16` (`DmxUniverse[16]`) in `ArtNetDmxUniverseManager`. Never allocate new universes dynamically from untrusted packet `SubUni`/`Net` headers.
+  - Validate the 8-byte `"Art-Net\0"` signature, `OpCode == 0x5000` (LE), `ProtVer >= 14` (BE), `universeId in [0..15]`, `dmxLength in [2..512]`, and actual buffer bounds before copying payload bytes.
+- **Rule (`SEC-15` – Photosensitivity Cap on Raw DMX / Art-Net Strobe Channels):**
+  - Even when a fixture is driven directly by external Art-Net `OpDmx` packets or manual in-game DMX512 faders (`DmxWorkstationUi`), `DmxUniverse.resolveMergedFixtureState` must clamp decoded strobe frequency to `<= maxStrobeHz` (`10.0 Hz`). External DMX data may never bypass PSE protection.
+- **Rule (`SEC-16` – Placed 3D DMX Console Quotas, Permission Gating & Static Hitboxes):**
+  - Enforce `limits.max-consoles-per-world` (default `32`) when placing 3D DMX consoles (`PlacedDmxConsole`).
+  - Require `admx.place` / `admx.admin` to place consoles, `admx.remove` / `admx.admin` to delete them, and `admx.console` / `admx.control` / `admx.admin` to open `DmxWorkstationUi` or relink universes.
+  - Place a single stationary `Interaction` entity at the console's block origin (`DmxConsoleRenderer`), never on a player.
+- **Rule (`SEC-17` – Thread-Safe Cross-Thread DMX Bus Synchronization):**
+  - Synchronize reads/writes between asynchronous Art-Net RX threads (UDP / WebSocket) and the 20 Hz main render thread inside `DmxUniverse`, and persist `PlacedDmxConsole` universe/bank changes asynchronously via `AdmxDatabase.saveConsoleAsync`.
+
 ---
 
 ## 3. Performance & Entity Budget Architecture (PERF-01 – PERF-15, CORE-01 – CORE-05)
@@ -106,6 +125,7 @@ Every agent or developer working on ADMX **must** enforce the invariants documen
 5. **Chunk & Entity Load Lifecycle (`BUG-05`, `BUG-06`):** Check chunk loaded status for every fog cell anchor before submitting to `EntityTracker`, and use `EntitiesLoadEvent` alongside `ChunkLoadEvent` to clean up any stray `admx:rendered` entities.
 6. **Scene Cue Timing & Perceptual Oklab (`BUG-08`, `BUG-09`):** Use each `SceneCue`'s configured `holdTicks` and `fadeTicks` in `SceneTimelineManager.tickSequence`, and apply proper sRGB $\leftrightarrow$ linear gamma transfer (`srgbToLinear` / `linearToSrgb`) in `Oklab`.
 7. **Resource Pack Packaging (`HYG-01`, `HYG-03`):** Keep a Gradle task `packageResourcePack` that builds `ADMX_ResourcePack.zip` cleanly from `resourcepack/` (excluding `*.zip` and duplicate folders), and avoid redundant feather overrides when `setItemModel` is used.
+8. **Symmetric 16-Bit Pan/Tilt DMX Encoding & Core DMX512 Bus (`BUG-10`, `CORE-06`):** Encode Pan (`[-270°, +270°]`) and Tilt (`[-135°, +135°]`) symmetrically around DMX center `32768` (`Coarse = 128`) in `DmxUniverse` so negative angles are never clipped to `0`, and route all fixtures through the unified 512-channel `DmxUniverse` bus (supporting `HTP`, `LTP`, `CONSOLE_EXCLUSIVE`, and `ARTNET_EXCLUSIVE` merge modes).
 
 ---
 

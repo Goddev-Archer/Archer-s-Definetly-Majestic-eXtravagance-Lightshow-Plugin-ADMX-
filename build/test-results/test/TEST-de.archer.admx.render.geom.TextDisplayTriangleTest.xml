@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="de.archer.admx.render.geom.TextDisplayTriangleTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-28T20:36:13.013Z" hostname="DESKTOP-0001" time="0.081">
+<testsuite name="de.archer.admx.render.geom.TextDisplayTriangleTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-07T23:45:53.558Z" hostname="DESKTOP-0001" time="0.1">
   <properties/>
-  <testcase name="testExactMinecraftClientVerticesMatchTriangleCorners()" classname="de.archer.admx.render.geom.TextDisplayTriangleTest" time="0.002"/>
-  <testcase name="testUnitTriangleCreation()" classname="de.archer.admx.render.geom.TextDisplayTriangleTest" time="0.0"/>
-  <testcase name="testLaserFanGeometry()" classname="de.archer.admx.render.geom.TextDisplayTriangleTest" time="0.077"/>
+  <testcase name="testExactMinecraftClientVerticesMatchTriangleCorners()" classname="de.archer.admx.render.geom.TextDisplayTriangleTest" time="0.003"/>
+  <testcase name="testUnitTriangleCreation()" classname="de.archer.admx.render.geom.TextDisplayTriangleTest" time="0.001"/>
+  <testcase name="testLaserFanGeometry()" classname="de.archer.admx.render.geom.TextDisplayTriangleTest" time="0.094"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

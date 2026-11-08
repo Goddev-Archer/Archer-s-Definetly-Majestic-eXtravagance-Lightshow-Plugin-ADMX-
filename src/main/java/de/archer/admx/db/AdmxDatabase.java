@@ -8,6 +8,9 @@ import de.archer.admx.control.ControlMode;
 import de.archer.admx.control.FixtureGroup;
 import de.archer.admx.control.MovementPattern;
 import de.archer.admx.control.SceneCue;
+import de.archer.admx.dmx.ConsoleModelType;
+import de.archer.admx.dmx.DmxUniverse;
+import de.archer.admx.dmx.PlacedDmxConsole;
 import de.archer.admx.flow.Flowboard;
 import de.archer.admx.render.fixture.FixtureType;
 import de.archer.admx.render.fixture.MovingHeadProfile;
@@ -169,6 +172,23 @@ public final class AdmxDatabase implements AutoCloseable {
                             loop_mode INTEGER NOT NULL,
                             nodes_json TEXT NOT NULL,
                             connections_json TEXT NOT NULL
+                        );
+                        """);
+
+                st.execute("""
+                        CREATE TABLE IF NOT EXISTS placed_consoles (
+                            id TEXT PRIMARY KEY,
+                            model_type TEXT NOT NULL,
+                            universe_id INTEGER NOT NULL,
+                            fader_bank INTEGER NOT NULL,
+                            world TEXT NOT NULL,
+                            x REAL NOT NULL,
+                            y REAL NOT NULL,
+                            z REAL NOT NULL,
+                            mount_yaw REAL NOT NULL,
+                            use_cmd INTEGER NOT NULL,
+                            owner_id TEXT,
+                            integrity_crc INTEGER NOT NULL
                         );
                         """);
             }
@@ -651,6 +671,163 @@ public final class AdmxDatabase implements AutoCloseable {
         } catch (SQLException e) {
             Bukkit.getLogger().warning("[ADMX-DB] Fehler beim Löschen von Flowboard " + boardId + ": " + e.getMessage());
         }
+    }
+
+    public void saveConsoleAsync(PlacedDmxConsole console) {
+        if (console == null) return;
+        if (asyncWriter.isShutdown()) {
+            saveConsole(console);
+        } else {
+            asyncWriter.execute(() -> saveConsole(console));
+        }
+    }
+
+    public synchronized void saveConsole(PlacedDmxConsole console) {
+        if (console == null) return;
+        World world = console.location().isWorldLoaded() ? console.location().getWorld() : null;
+        String worldName = (world != null) ? world.getName() : "world";
+        long crc = computeConsoleCrc(
+                console.id(),
+                console.modelType().name(),
+                console.universeId(),
+                worldName,
+                console.location().getX(),
+                console.location().getY(),
+                console.location().getZ()
+        );
+
+        String sql = """
+                INSERT INTO placed_consoles (
+                    id, model_type, universe_id, fader_bank, world, x, y, z,
+                    mount_yaw, use_cmd, owner_id, integrity_crc
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    model_type = excluded.model_type,
+                    universe_id = excluded.universe_id,
+                    fader_bank = excluded.fader_bank,
+                    world = excluded.world,
+                    x = excluded.x,
+                    y = excluded.y,
+                    z = excluded.z,
+                    mount_yaw = excluded.mount_yaw,
+                    use_cmd = excluded.use_cmd,
+                    owner_id = excluded.owner_id,
+                    integrity_crc = excluded.integrity_crc;
+                """;
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
+            ps.setString(1, console.id().toString());
+            ps.setString(2, console.modelType().name());
+            ps.setInt(3, console.universeId());
+            ps.setInt(4, console.faderBank());
+            ps.setString(5, worldName);
+            ps.setDouble(6, console.location().getX());
+            ps.setDouble(7, console.location().getY());
+            ps.setDouble(8, console.location().getZ());
+            ps.setFloat(9, console.mountYaw());
+            ps.setInt(10, console.useCustomModelData() ? 1 : 0);
+            ps.setString(11, console.ownerId() != null ? console.ownerId().toString() : null);
+            ps.setLong(12, crc);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            Bukkit.getLogger().warning("[ADMX-DB] Fehler beim Speichern von DMX-Pult " + console.id() + ": " + e.getMessage());
+        }
+    }
+
+    public void deleteConsoleAsync(UUID consoleId) {
+        if (consoleId == null) return;
+        if (asyncWriter.isShutdown()) {
+            deleteConsole(consoleId);
+        } else {
+            asyncWriter.execute(() -> deleteConsole(consoleId));
+        }
+    }
+
+    public synchronized void deleteConsole(UUID consoleId) {
+        if (consoleId == null) return;
+        try (PreparedStatement ps = getConnection().prepareStatement("DELETE FROM placed_consoles WHERE id = ?;")) {
+            ps.setString(1, consoleId.toString());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            Bukkit.getLogger().warning("[ADMX-DB] Fehler beim Löschen von DMX-Pult " + consoleId + ": " + e.getMessage());
+        }
+    }
+
+    public synchronized void deleteAllConsoles() {
+        try (Statement st = getConnection().createStatement()) {
+            st.executeUpdate("DELETE FROM placed_consoles;");
+        } catch (SQLException e) {
+            Bukkit.getLogger().warning("[ADMX-DB] Fehler beim Leeren der placed_consoles-Tabelle: " + e.getMessage());
+        }
+    }
+
+    public synchronized Map<UUID, PlacedDmxConsole> loadConsoles() {
+        Map<UUID, PlacedDmxConsole> result = new LinkedHashMap<>();
+        String sql = "SELECT * FROM placed_consoles ORDER BY rowid ASC;";
+        try (Statement st = getConnection().createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                UUID id = UUID.fromString(rs.getString("id"));
+                String modelName = rs.getString("model_type");
+                int universeId = Math.clamp(rs.getInt("universe_id"), 0, DmxUniverse.MAX_UNIVERSES - 1);
+                int faderBank = Math.clamp(rs.getInt("fader_bank"), 0, 63);
+                String worldName = rs.getString("world");
+                double x = rs.getDouble("x");
+                double y = rs.getDouble("y");
+                double z = rs.getDouble("z");
+                float mountYaw = rs.getFloat("mount_yaw");
+                boolean useCmd = rs.getInt("use_cmd") != 0;
+                String rawOwner = rs.getString("owner_id");
+                long storedCrc = rs.getLong("integrity_crc");
+
+                long expectedCrc = computeConsoleCrc(id, modelName, universeId, worldName, x, y, z);
+                if (storedCrc != expectedCrc) {
+                    Bukkit.getLogger().warning("[ADMX-DB] CRC32-Abweichung bei DMX-Pult " + id
+                            + " erkannt (gespeichert=" + storedCrc + ", berechnet=" + expectedCrc + ").");
+                }
+
+                World world = Bukkit.getWorld(worldName);
+                if (world == null) {
+                    continue;
+                }
+
+                ConsoleModelType modelType;
+                try {
+                    modelType = ConsoleModelType.valueOf(modelName);
+                } catch (IllegalArgumentException e) {
+                    modelType = ConsoleModelType.GRAND_CONSOLE;
+                }
+
+                UUID ownerId = null;
+                if (rawOwner != null && !rawOwner.isBlank()) {
+                    try {
+                        ownerId = UUID.fromString(rawOwner);
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                }
+
+                Location loc = new Location(world, x, y, z, 0f, 0f);
+                result.put(id, new PlacedDmxConsole(id, modelType, universeId, faderBank, loc, mountYaw, useCmd, ownerId));
+            }
+        } catch (SQLException e) {
+            Bukkit.getLogger().warning("[ADMX-DB] Fehler beim Laden der DMX-Pulte: " + e.getMessage());
+        }
+        return result;
+    }
+
+    public static long computeConsoleCrc(
+            UUID id,
+            String modelType,
+            int universeId,
+            String world,
+            double x,
+            double y,
+            double z
+    ) {
+        CRC32 crc = new CRC32();
+        String payload = id + "|" + modelType + "|" + universeId + "|" + world + "|"
+                + String.format(Locale.ROOT, "%.4f|%.4f|%.4f", x, y, z);
+        crc.update(payload.getBytes(StandardCharsets.UTF_8));
+        return crc.getValue();
     }
 
     /**

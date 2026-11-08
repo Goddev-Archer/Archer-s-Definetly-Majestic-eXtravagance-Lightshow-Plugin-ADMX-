@@ -1,35 +1,40 @@
 package de.archer.admx.artnet;
 
 import de.archer.admx.AdmxPlugin;
+import de.archer.admx.dmx.DmxUniverse;
 import de.archer.admx.render.fixture.FixtureState;
 import org.bukkit.Bukkit;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
- * Zentraler Lifecycle- & Übertragungs-Manager für die Art-Net WebSocket-Bridge.
- * <p>
- * Erzeugt aus den aktuellen Licht-Zuständen der platzierten Scheinwerfer
- * normgerechte DMX512-Frames und streamt diese im 20-Hz Server-Takt
- * hochgesichert über WebSocket an verbundene Client-PCs.
+ * Verwaltet den gesamten Lebenszyklus der bidirektionalen Art-Net 4 Schnittstelle:
+ * <ul>
+ *   <li>Zentraler 16-Universen DMX512 Core-Bus ({@link ArtNetDmxUniverseManager})</li>
+ *   <li>Nativer Art-Net 4 UDP-Node auf Port 6454 ({@link ArtNetUdpNode} inkl. {@code ArtPollReply} Auto-Discovery)</li>
+ *   <li>Token-authentifizierte, bidirektionale WebSocket-Bridge ({@link ArtNetWebSocketServer}) für WAN/NAT</li>
+ * </ul>
  */
 public final class ArtNetBridgeManager implements AutoCloseable {
 
     private final AdmxPlugin plugin;
-    private final ArtNetDmxUniverseManager universeManager = new ArtNetDmxUniverseManager();
-
-    private boolean enabled = true;
-    private String bindHost = "0.0.0.0";
-    private int port = 8765;
-    private String authToken = "";
-    private int maxClients = 5;
-    private int rateLimitAttempts = 5;
-
+    private final ArtNetDmxUniverseManager universeManager;
     private ArtNetWebSocketServer server;
+    private ArtNetUdpNode udpNode;
+
+    private boolean enabled;
+    private String bindHost;
+    private int port;
+    private String udpBindHost;
+    private int udpPort;
+    private String authToken;
+    private int maxClients;
+    private int rateLimitAttempts;
 
     public ArtNetBridgeManager(AdmxPlugin plugin) {
         this.plugin = plugin;
+        this.universeManager = new ArtNetDmxUniverseManager();
         loadConfig();
     }
 
@@ -38,6 +43,9 @@ public final class ArtNetBridgeManager implements AutoCloseable {
         this.enabled = cfg.getBoolean("artnet-bridge.enabled", true);
         this.bindHost = cfg.getString("artnet-bridge.bind-host", "0.0.0.0");
         this.port = cfg.getInt("artnet-bridge.port", 8765);
+        // SEC-12: Nativer UDP-Port standardmäßig nur auf Loopback 127.0.0.1 binden
+        this.udpBindHost = cfg.getString("artnet-bridge.udp-bind-host", "127.0.0.1");
+        this.udpPort = cfg.getInt("artnet-bridge.udp-port", ArtNetUdpNode.DEFAULT_ARTNET_PORT);
         this.authToken = cfg.getString("artnet-bridge.auth-token", "");
         this.maxClients = Math.max(1, cfg.getInt("artnet-bridge.max-clients", 5));
         this.rateLimitAttempts = Math.max(3, cfg.getInt("artnet-bridge.rate-limit-max-attempts", 5));
@@ -55,13 +63,18 @@ public final class ArtNetBridgeManager implements AutoCloseable {
             Bukkit.getLogger().info("[ADMX-ArtNet] Bridge ist in config.yml deaktiviert.");
             return;
         }
-        if (server != null && server.isRunning()) return;
-
-        try {
-            this.server = new ArtNetWebSocketServer(bindHost, port, authToken, maxClients, rateLimitAttempts);
-            this.server.start();
-        } catch (Exception e) {
-            Bukkit.getLogger().severe("[ADMX-ArtNet] Fehler beim Starten des WebSocket-Servers auf Port " + port + ": " + e.getMessage());
+        if (server == null || !server.isRunning()) {
+            try {
+                this.server = new ArtNetWebSocketServer(bindHost, port, authToken, maxClients, rateLimitAttempts);
+                this.server.setIncomingPacketHandler(universeManager::handleIncomingArtNetPacket);
+                this.server.start();
+            } catch (Exception e) {
+                Bukkit.getLogger().severe("[ADMX-ArtNet] Fehler beim Starten des WebSocket-Servers auf Port " + port + ": " + e.getMessage());
+            }
+        }
+        if (udpNode == null || !udpNode.isRunning()) {
+            this.udpNode = new ArtNetUdpNode(udpBindHost, udpPort, universeManager);
+            this.udpNode.start();
         }
     }
 
@@ -71,6 +84,10 @@ public final class ArtNetBridgeManager implements AutoCloseable {
             server = null;
             Bukkit.getLogger().info("[ADMX-ArtNet] WebSocket-Bridge gestoppt.");
         }
+        if (udpNode != null) {
+            udpNode.close();
+            udpNode = null;
+        }
     }
 
     public synchronized void regenerateToken() {
@@ -78,23 +95,47 @@ public final class ArtNetBridgeManager implements AutoCloseable {
         plugin.getConfig().set("artnet-bridge.auth-token", this.authToken);
         plugin.saveConfig();
 
-        // Server neu starten, um neues Token anzuwenden
         stop();
         start();
     }
 
+    public ArtNetDmxUniverseManager getUniverseManager() {
+        return universeManager;
+    }
+
+    public DmxUniverse getUniverse(int universeId) {
+        return universeManager.getUniverse(universeId);
+    }
+
+    public ArtNetUdpNode getUdpNode() {
+        return udpNode;
+    }
+
     /**
-     * Wird in jedem Render-Tick von ADMX aufgerufen.
-     * Erstellt DMX-Frames und streamt diese ohne Verzögerung an verbundene Clients.
+     * Synchronisiert die DMX-Universen im aktuellen Render-Tick und streamt die zusammengeführten
+     * DMX-Frames (HTP/LTP) an alle verbundenen WebSocket-Clients sowie optional über den lokalen UDP-Node.
      */
-    public void onRenderTick(List<AdmxPlugin.PlacedFixture> fixtures, java.util.function.Function<AdmxPlugin.PlacedFixture, FixtureState> stateResolver) {
-        if (server == null || !server.isRunning() || server.getClientCount() == 0) {
+    public void onRenderTick(
+            List<AdmxPlugin.PlacedFixture> fixtures,
+            Function<AdmxPlugin.PlacedFixture, FixtureState> stateResolver
+    ) {
+        universeManager.syncUniverses(fixtures, stateResolver);
+
+        boolean wsActive = (server != null && server.isRunning() && server.getClientCount() > 0);
+        boolean udpTxActive = (udpNode != null && udpNode.isRunning() && udpNode.isLoopbackTxEnabled());
+        if (!wsActive && !udpTxActive) {
             return;
         }
 
-        List<byte[]> frames = universeManager.buildDmxFrames(fixtures, stateResolver);
+        int count = (fixtures != null) ? fixtures.size() : 0;
+        List<byte[]> frames = universeManager.buildSyncedDmxFrames(count);
         for (byte[] frame : frames) {
-            server.broadcastArtNetPacket(frame);
+            if (wsActive) {
+                server.broadcastArtNetPacket(frame);
+            }
+            if (udpTxActive) {
+                udpNode.sendArtDmxFrame(frame);
+            }
         }
     }
 

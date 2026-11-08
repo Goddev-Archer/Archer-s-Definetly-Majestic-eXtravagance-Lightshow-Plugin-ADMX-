@@ -104,6 +104,41 @@
                     "type": "minecraft:model",
                     "model": "admx:item/low_fog_machine"
                 }
+            },
+            {
+                "threshold": 10015,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/dmx_console"
+                }
+            },
+            {
+                "threshold": 10016,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/stairville_ddc6"
+                }
+            },
+            {
+                "threshold": 10017,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/stairville_dmx_master"
+                }
+            },
+            {
+                "threshold": 10018,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/behringer_wing"
+                }
+            },
+            {
+                "threshold": 10019,
+                "model": {
+                    "type": "minecraft:model",
+                    "model": "admx:item/yamaha_dm7"
+                }
             }
         ]
     }

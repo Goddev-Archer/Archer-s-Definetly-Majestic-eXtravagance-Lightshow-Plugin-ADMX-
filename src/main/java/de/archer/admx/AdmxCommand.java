@@ -4,6 +4,9 @@ import de.archer.admx.control.ControlMode;
 import de.archer.admx.control.FixtureGroup;
 import de.archer.admx.control.MovementPattern;
 import de.archer.admx.control.UiPreference;
+import de.archer.admx.dmx.ConsoleModelType;
+import de.archer.admx.dmx.DmxUniverse;
+import de.archer.admx.dmx.PlacedDmxConsole;
 import de.archer.admx.render.entity.EntityTracker;
 import de.archer.admx.render.fixture.FixtureType;
 import de.archer.admx.render.fixture.MovingHeadProfile;
@@ -80,17 +83,35 @@ public final class AdmxCommand implements BasicCommand {
         if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
             player.sendMessage(Component.text("--- ADMX Stage Lighting & Console Befehle ---", NamedTextColor.GOLD));
             player.sendMessage(Component.text("/admx wand - Gibt dir den ADMX Fixture Placer & Console Wand", NamedTextColor.AQUA));
+            player.sendMessage(Component.text("/admx dmx [1-16] - Öffnet die 512-Kanal Pro DMX Workstation & Art-Net Merger", NamedTextColor.GOLD));
             player.sendMessage(Component.text("/admx s2l - Öffnet das Hardware-Style Sound-to-Light Pult (Spektrogramm & Filter)", NamedTextColor.YELLOW));
-            player.sendMessage(Component.text("/admx artnet [status|start|stop|token] - Art-Net WebSocket-Bridge Fernsteuerung", NamedTextColor.GOLD));
+            player.sendMessage(Component.text("/admx artnet [status|start|stop|token|loopback] - Art-Net 4 UDP & WebSocket-Bridge", NamedTextColor.GOLD));
             player.sendMessage(Component.text("/admx ui [chest|holo|open|close] - Wählt/öffnet das Chest-UI oder 3D-Hologramm-UI", NamedTextColor.LIGHT_PURPLE));
             player.sendMessage(Component.text("/admx flow [boardId] - Öffnet das visuelle Flowboard-Programmier-Pult", NamedTextColor.LIGHT_PURPLE));
             player.sendMessage(Component.text("/admx auto [on|off|s2l|status|source|genre|bpm] - Smart Auto-Show & Sound-to-Light", NamedTextColor.AQUA));
             player.sendMessage(Component.text("/admx group [list|select|create|delete] <id> [Name] - Verwaltet SQLite-Gerätegruppen", NamedTextColor.GREEN));
             player.sendMessage(Component.text("/admx scene [play|stop|rec|load] [1-4] - Szenen-Programmierung & Sequencer", NamedTextColor.GOLD));
-            player.sendMessage(Component.text("/admx spawn [spot|beam|wash|fan|needle|laserhead|blinder|strobe|hazer|lowfog|flame] [groupId]", NamedTextColor.YELLOW));
+            player.sendMessage(Component.text("/admx spawn [spot|beam|wash|...|grand_console|ddc6|dmx_master|wing|dm7]", NamedTextColor.YELLOW));
             player.sendMessage(Component.text("/admx safe - Schaltet den persönlichen Photosensitivitäts-Schutzmodus um", NamedTextColor.AQUA));
             player.sendMessage(Component.text("/admx purge - Bereinigt verwaiste Display-Entities", NamedTextColor.RED));
             player.sendMessage(Component.text("/admx clear confirm - Entfernt alle platzierten ADMX-Geräte (mit Bestätigung)", NamedTextColor.YELLOW));
+            return;
+        }
+
+        if (args[0].equalsIgnoreCase("dmx") || args[0].equalsIgnoreCase("workstation")) {
+            if (!player.hasPermission("admx.console") && !player.hasPermission("admx.control") && !player.hasPermission("admx.admin")) {
+                player.sendMessage(Component.text("✘ Keine Berechtigung für die DMX512-Workstation (admx.console).", NamedTextColor.RED));
+                return;
+            }
+            int uni = 0;
+            if (args.length > 1) {
+                try {
+                    uni = Math.clamp(Integer.parseInt(args[1]) - 1, 0, DmxUniverse.MAX_UNIVERSES - 1);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            plugin.getDmxWorkstationUi().openVirtualWorkstation(player, uni);
+            player.playSound(player.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.7f, 1.3f);
             return;
         }
 
@@ -146,14 +167,29 @@ public final class AdmxCommand implements BasicCommand {
                                     + ":" + bridge.getPort() + "/artnet?token=" + bridge.getAuthToken(), NamedTextColor.AQUA)));
                     player.sendMessage(Component.text("Tipp: Nutze '/admx artnet token regenerate' um den Token sofort zu erneuern.", NamedTextColor.DARK_GRAY));
                 }
+                case "loopback" -> {
+                    var udp = bridge.getUdpNode();
+                    if (udp != null) {
+                        udp.setBroadcastToLocalhost(!udp.isBroadcastToLocalhost());
+                        player.sendMessage(Component.text("✔ Lokaler Art-Net UDP-Loopback TX ist jetzt: "
+                                + (udp.isBroadcastToLocalhost() ? "AKTIV (127.0.0.1:6454)" : "PASSIV"), NamedTextColor.GREEN));
+                    }
+                }
                 default -> {
-                    player.sendMessage(Component.text("--- ADMX Art-Net WebSocket-Bridge Status ---", NamedTextColor.GOLD));
-                    player.sendMessage(Component.text("Status: ", NamedTextColor.GRAY)
-                            .append(Component.text(bridge.isRunning() ? "ONLINE" : "OFFLINE", bridge.isRunning() ? NamedTextColor.GREEN : NamedTextColor.RED)));
-                    player.sendMessage(Component.text("Adresse: " + bridge.getBindHost() + ":" + bridge.getPort(), NamedTextColor.YELLOW));
-                    player.sendMessage(Component.text("Verbundene Client-PCs: " + bridge.getConnectedClientCount(), NamedTextColor.AQUA));
-                    player.sendMessage(Component.text("Universum 0: 512 DMX-Kanäle aktiv (16 Kanäle / Moving Head)", NamedTextColor.WHITE));
-                    player.sendMessage(Component.text("Befehle: /admx artnet [status|start|stop|token]", NamedTextColor.GRAY));
+                    var udp = bridge.getUdpNode();
+                    DmxUniverse u0 = bridge.getUniverseManager().getUniverse(0);
+                    player.sendMessage(Component.text("--- ADMX Art-Net 4 Core & WebSocket-Bridge Status ---", NamedTextColor.GOLD));
+                    player.sendMessage(Component.text("WebSocket-Bridge: ", NamedTextColor.GRAY)
+                            .append(Component.text(bridge.isRunning() ? "ONLINE (" + bridge.getBindHost() + ":" + bridge.getPort() + ")" : "OFFLINE",
+                                    bridge.isRunning() ? NamedTextColor.GREEN : NamedTextColor.RED)));
+                    player.sendMessage(Component.text("Nativer Art-Net 4 UDP Node (Port 6454): ", NamedTextColor.GRAY)
+                            .append(Component.text(udp != null && udp.isRunning()
+                                    ? (udp.isBoundToStandardPort() ? "AKTIV (ArtPollReply + OpDmx RX/TX)" : "KOEXISTENZ-MODUS (QLC+ gebunden)")
+                                    : "INAKTIV", NamedTextColor.AQUA)));
+                    player.sendMessage(Component.text("Verbundene WebSocket-Clients: " + bridge.getConnectedClientCount(), NamedTextColor.AQUA));
+                    player.sendMessage(Component.text("Universum 1 (Art-Net 0:0:0): Merge=" + u0.mergeMode().displayName()
+                            + " | RX-Pakete=" + u0.artNetPacketsReceived(), NamedTextColor.WHITE));
+                    player.sendMessage(Component.text("Befehle: /admx artnet [status|start|stop|token|loopback] | /admx dmx", NamedTextColor.GRAY));
                 }
             }
             return;
@@ -421,6 +457,41 @@ public final class AdmxCommand implements BasicCommand {
 
             if (args.length > 1) {
                 String sub = args[1].toLowerCase();
+                ConsoleModelType consoleType = switch (sub) {
+                    case "grand_console", "dmx_console", "grandma" -> ConsoleModelType.GRAND_CONSOLE;
+                    case "ddc6", "stairville_ddc6" -> ConsoleModelType.STAIRVILLE_DDC6;
+                    case "dmx_master", "stairville_dmx_master" -> ConsoleModelType.STAIRVILLE_DMX_MASTER;
+                    case "wing", "behringer_wing" -> ConsoleModelType.BEHRINGER_WING;
+                    case "dm7", "yamaha_dm7" -> ConsoleModelType.YAMAHA_DM7;
+                    default -> null;
+                };
+                if (consoleType != null) {
+                    String limitErr = plugin.checkConsolePlacementLimits(player.getWorld());
+                    if (limitErr != null) {
+                        player.sendMessage(Component.text("✘ " + limitErr, NamedTextColor.RED));
+                        return;
+                    }
+                    int targetUni = 0;
+                    if (args.length > 2) {
+                        try {
+                            targetUni = Math.clamp(Integer.parseInt(args[2]) - 1, 0, DmxUniverse.MAX_UNIVERSES - 1);
+                        } catch (NumberFormatException ignored) {
+                        }
+                    }
+                    Location spawnLoc = player.getLocation().add(player.getLocation().getDirection().multiply(2.5));
+                    spawnLoc.setX(Math.floor(spawnLoc.getX()) + 0.5);
+                    spawnLoc.setY(Math.floor(spawnLoc.getY()));
+                    spawnLoc.setZ(Math.floor(spawnLoc.getZ()) + 0.5);
+                    float mountYaw = Math.round(player.getLocation().getYaw() / 45f) * 45f;
+
+                    PlacedDmxConsole created = plugin.addPlacedConsole(
+                            UUID.randomUUID(), consoleType, targetUni, spawnLoc, mountYaw, true, player.getUniqueId()
+                    );
+                    player.sendMessage(Component.text("✔ 3D-DMX-Pult '" + created.modelType().displayName()
+                            + "' gespawnt & mit Universum " + (created.universeId() + 1) + " verlinkt!", NamedTextColor.GREEN));
+                    return;
+                }
+
                 type = switch (sub) {
                     case "beam" -> FixtureType.MOVING_HEAD_BEAM;
                     case "wash" -> FixtureType.MOVING_HEAD_WASH;
@@ -509,12 +580,14 @@ public final class AdmxCommand implements BasicCommand {
             return (args.length <= 1) ? List.of("safe") : List.of();
         }
         if (args.length == 0 || args.length == 1) {
-            return List.of("wand", "ui", "s2l", "artnet", "group", "scene", "flow", "auto", "spawn", "safe", "purge", "clear", "help");
+            return List.of("wand", "dmx", "ui", "s2l", "artnet", "group", "scene", "flow", "auto", "spawn", "safe", "purge", "clear", "help");
         }
         if (args.length == 2) {
             return switch (args[0].toLowerCase()) {
-                case "artnet", "bridge" -> List.of("status", "start", "stop", "token");
-                case "spawn" -> List.of("spot", "beam", "wash", "fan", "needle", "laserhead", "blinder", "strobe", "hazer", "lowfog", "flame");
+                case "dmx", "workstation" -> List.of("1", "2", "3", "4", "5", "6", "7", "8");
+                case "artnet", "bridge" -> List.of("status", "start", "stop", "token", "loopback");
+                case "spawn" -> List.of("spot", "beam", "wash", "fan", "needle", "laserhead", "blinder", "strobe", "hazer", "lowfog", "flame",
+                        "grand_console", "ddc6", "dmx_master", "wing", "dm7");
                 case "ui", "console" -> List.of("chest", "holo", "open", "close");
                 case "flow", "flowboard" -> new ArrayList<>(plugin.getFlowboards().keySet());
                 case "auto" -> List.of("on", "off", "s2l", "status", "source", "genre", "bpm");

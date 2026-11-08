@@ -8,6 +8,10 @@ import de.archer.admx.control.ControlMode;
 import de.archer.admx.control.FixtureGroup;
 import de.archer.admx.control.SceneTimelineManager;
 import de.archer.admx.db.AdmxDatabase;
+import de.archer.admx.dmx.ConsoleModelType;
+import de.archer.admx.dmx.DmxConsoleRenderer;
+import de.archer.admx.dmx.DmxUniverse;
+import de.archer.admx.dmx.PlacedDmxConsole;
 import de.archer.admx.flow.FlowConnection;
 import de.archer.admx.flow.FlowNode;
 import de.archer.admx.flow.FlowNodeType;
@@ -27,6 +31,7 @@ import de.archer.admx.render.fixture.MovingHeadRenderer;
 import de.archer.admx.render.fog.FogType;
 import de.archer.admx.render.light.FakeLightManager;
 import de.archer.admx.ui.ChestConsoleUi;
+import de.archer.admx.ui.DmxWorkstationUi;
 import de.archer.admx.ui.HoloConsoleUi;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -66,27 +71,32 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
     private final FlowboardEngine flowboardEngine = new FlowboardEngine();
     private final AudioDspManager audioDspManager = new AudioDspManager();
     private final SmartAutoDirector smartAutoDirector = new SmartAutoDirector();
+    private final DmxConsoleRenderer dmxConsoleRenderer = new DmxConsoleRenderer();
 
     private AdmxDatabase database;
     private FixtureStorage legacyStorage;
     private FixturePlacementManager placementManager;
     private ChestConsoleUi chestConsoleUi;
     private HoloConsoleUi holoConsoleUi;
+    private DmxWorkstationUi dmxWorkstationUi;
     private FlowboardGui flowboardGui;
     private de.archer.admx.ui.SoundToLightChestUi soundToLightChestUi;
     private de.archer.admx.artnet.ArtNetBridgeManager artNetBridgeManager;
 
     private final Map<String, FixtureGroup> fixtureGroups = new LinkedHashMap<>();
     private final Map<UUID, PlacedFixture> placedFixtures = new ConcurrentHashMap<>();
+    private final Map<UUID, PlacedDmxConsole> placedConsoles = new ConcurrentHashMap<>();
     private final Map<String, Integer> groupFixtureCounts = new ConcurrentHashMap<>();
     private final Map<String, Flowboard> flowboards = new ConcurrentHashMap<>();
 
     // Konfigurierbare Sicherheits- und Performance-Budgets (aus config.yml)
     private int maxFixturesPerWorld = 250;
     private int maxFogMachinesPerWorld = 12;
+    private int maxConsolesPerWorld = 32;
     private long uiClickCooldownMs = 75L;
     private double renderDistanceBlocksSq = 96.0 * 96.0;
     private float beamMaxReach = 48.0f;
+    private float maxStrobeHz = 10.0f;
 
     private int tickCounter = 0;
     private long lastRenderErrorLogMs = 0L;
@@ -130,6 +140,7 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
         this.fixtureGroups.putAll(this.database.loadOrSeedGroups());
         this.sceneTimeline.loadCues(this.database.loadSceneCues());
         this.placedFixtures.putAll(this.database.loadFixtures());
+        this.placedConsoles.putAll(this.database.loadConsoles());
 
         // Automatische Migration aus alter fixtures.json, falls die SQLite-Tabelle noch leer war
         this.legacyStorage = new FixtureStorage(getDataFolder());
@@ -157,6 +168,7 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
         this.placementManager = new FixturePlacementManager(this);
         this.chestConsoleUi = new ChestConsoleUi(this);
         this.holoConsoleUi = new HoloConsoleUi(this);
+        this.dmxWorkstationUi = new DmxWorkstationUi(this);
         this.flowboardGui = new FlowboardGui(this);
         this.soundToLightChestUi = new de.archer.admx.ui.SoundToLightChestUi(this);
 
@@ -184,6 +196,7 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(this.placementManager, this);
         getServer().getPluginManager().registerEvents(this.chestConsoleUi, this);
         getServer().getPluginManager().registerEvents(this.holoConsoleUi, this);
+        getServer().getPluginManager().registerEvents(this.dmxWorkstationUi, this);
         getServer().getPluginManager().registerEvents(this.flowboardGui, this);
         getServer().getPluginManager().registerEvents(this.soundToLightChestUi, this);
 
@@ -202,6 +215,7 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
         var cfg = getConfig();
         this.maxFixturesPerWorld = Math.max(10, cfg.getInt("limits.max-fixtures-per-world", 250));
         this.maxFogMachinesPerWorld = Math.max(1, cfg.getInt("limits.max-fog-machines-per-world", 12));
+        this.maxConsolesPerWorld = Math.clamp(cfg.getInt("limits.max-consoles-per-world", 32), 1, 128);
         int maxEntities = Math.max(250, cfg.getInt("limits.max-entities-total", 8000));
         int maxFogCells = Math.clamp(cfg.getInt("limits.max-fog-cells-per-machine", 180), 24, 600);
         this.uiClickCooldownMs = Math.clamp(cfg.getLong("limits.ui-click-cooldown-ms", 75L), 10L, 1000L);
@@ -209,6 +223,7 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
         double renderDist = Math.clamp(cfg.getDouble("rendering.render-distance-blocks", 96.0), 16.0, 256.0);
         this.renderDistanceBlocksSq = renderDist * renderDist;
         this.beamMaxReach = (float) Math.clamp(cfg.getDouble("rendering.beam-max-reach", 48.0), 8.0, 96.0);
+        this.maxStrobeHz = (float) Math.clamp(cfg.getDouble("rendering.max-strobe-hz", 10.0), 1.0, 10.0);
         int waveInterval = Math.clamp(cfg.getInt("rendering.fog-wave-update-interval-ticks", 4), 1, 20);
 
         EntityTracker.setMaxEntities(maxEntities);
@@ -236,6 +251,7 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
             fakeLightManager.clearWorld(world, Bukkit.getOnlinePlayers());
         }
         placedFixtures.clear();
+        placedConsoles.clear();
         groupFixtureCounts.clear();
         getLogger().info("ADMX deaktiviert, Datenbank geschlossen und alle Display-Entities bereinigt.");
     }
@@ -316,9 +332,9 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
                 }
             }
 
-            // Art-Net DMX Stream an verbundene Client-PCs über WebSocket senden (Zero-Lag)
-            if (hasArtNetClients) {
-                List<PlacedFixture> allFixtures = new ArrayList<>(placedFixtures.values());
+            // Core DMX512-Universum-Bus & Art-Net 4 Schnittstelle aktualisieren (Zero-Lag)
+            List<PlacedFixture> allFixtures = new ArrayList<>(placedFixtures.values());
+            if (artNetBridgeManager != null) {
                 artNetBridgeManager.onRenderTick(allFixtures, this::resolveStateForFixture);
             }
 
@@ -337,10 +353,11 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
             Oklab spotColor = Oklab.fromHSB(hueSpot, 0.85f, 1.0f);
             Oklab laserColor = Oklab.fromHSB(hueLaser, 0.95f, 1.0f);
 
-            if (!placedFixtures.isEmpty()) {
+            if (!allFixtures.isEmpty()) {
 
-                // Pass 1: Rendere alle Licht-, Laser- und Pyro-Geräte in Sichtweite
-                for (PlacedFixture fixture : placedFixtures.values()) {
+                // Pass 1: Rendere alle Licht-, Laser- und Pyro-Geräte in Sichtweite (inkl. DMX-Pult & Art-Net 4 Merge)
+                for (int fixtureIdx = 0; fixtureIdx < allFixtures.size(); fixtureIdx++) {
+                    PlacedFixture fixture = allFixtures.get(fixtureIdx);
                     if (fixture.type().isFogMachine()) {
                         continue;
                     }
@@ -353,7 +370,10 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
                         continue;
                     }
 
-                    FixtureState state = resolveStateForFixture(fixture, spotColor, laserColor);
+                    FixtureState generatorState = resolveStateForFixture(fixture, spotColor, laserColor);
+                    FixtureState state = (artNetBridgeManager != null)
+                            ? artNetBridgeManager.getUniverseManager().resolveMergedStateForFixture(fixtureIdx, generatorState, maxStrobeHz)
+                            : generatorState;
 
                     movingHeadRenderer.render(
                             fixture.id(),
@@ -370,7 +390,8 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
                 }
 
                 // Pass 2: Rendere alle Nebelmaschinen (ohne Cache-Wipe bei kurzen Dimmer-Pausen -> PERF-03)
-                for (PlacedFixture fixture : placedFixtures.values()) {
+                for (int fixtureIdx = 0; fixtureIdx < allFixtures.size(); fixtureIdx++) {
+                    PlacedFixture fixture = allFixtures.get(fixtureIdx);
                     if (!fixture.type().isFogMachine()) {
                         continue;
                     }
@@ -383,7 +404,12 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
                         continue;
                     }
 
-                    FixtureState state = resolveStateForFixture(fixture, spotColor, laserColor);
+                    FixtureState generatorState = resolveStateForFixture(fixture, spotColor, laserColor);
+                    FixtureState mergedFog = (artNetBridgeManager != null)
+                            ? artNetBridgeManager.getUniverseManager().resolveMergedStateForFixture(fixtureIdx, generatorState, maxStrobeHz)
+                            : generatorState;
+                    // PERF-03: Nebelmaschinen dürfen niemals durch Strobe getriggert werden
+                    FixtureState state = new FixtureState(0f, 0f, mergedFog.dimmer(), fixture.type().fogType().baseColor(), 30f, 0f);
 
                     movingHeadRenderer.render(
                             fixture.id(),
@@ -406,9 +432,19 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
                 );
             }
 
-            // Pass 4: Interaktive 3D-Hologramm-Steuerpulte rendern
+            // Pass 4: Interaktive 3D-Hologramm-Steuerpulte & platzierte 3D-DMX-Pulte rendern
             if (holoConsoleUi != null) {
                 holoConsoleUi.renderAllConsoles();
+            }
+            if (!placedConsoles.isEmpty() && artNetBridgeManager != null) {
+                for (PlacedDmxConsole console : placedConsoles.values()) {
+                    Location cLoc = console.location();
+                    if (!cLoc.isWorldLoaded()) continue;
+                    World cWorld = cLoc.getWorld();
+                    if (cWorld == null || !cLoc.isChunkLoaded() || !isAnyPlayerInRange(cWorld, cLoc)) continue;
+                    DmxUniverse linkedUniverse = artNetBridgeManager.getUniverseManager().getUniverse(console.universeId());
+                    dmxConsoleRenderer.render(console, linkedUniverse, this);
+                }
             }
 
             EntityTracker.removeUnused();
@@ -736,8 +772,91 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
         return smartAutoDirector;
     }
 
+    public DmxWorkstationUi getDmxWorkstationUi() {
+        return dmxWorkstationUi;
+    }
+
+    public Map<UUID, PlacedFixture> getPlacedFixtures() {
+        return placedFixtures;
+    }
+
+    public Map<UUID, PlacedDmxConsole> getPlacedConsoles() {
+        return placedConsoles;
+    }
+
+    public PlacedDmxConsole getPlacedConsole(UUID consoleId) {
+        return placedConsoles.get(consoleId);
+    }
+
+    public String checkConsolePlacementLimits(World world) {
+        if (world == null) {
+            return "Zielwelt ist nicht geladen.";
+        }
+        int worldConsoles = 0;
+        for (PlacedDmxConsole c : placedConsoles.values()) {
+            if (c.location().isWorldLoaded() && world.equals(c.location().getWorld())) {
+                worldConsoles++;
+            }
+        }
+        if (worldConsoles >= maxConsolesPerWorld) {
+            return "Maximales 3D-DMX-Pult-Limit für diese Welt erreicht (" + maxConsolesPerWorld + " Pulte).";
+        }
+        return null;
+    }
+
+    public PlacedDmxConsole addPlacedConsole(
+            UUID id,
+            ConsoleModelType modelType,
+            int universeId,
+            Location location,
+            float mountYaw,
+            boolean useCmd,
+            UUID ownerId
+    ) {
+        Location cleanLoc = location.clone();
+        cleanLoc.setYaw(0f);
+        cleanLoc.setPitch(0f);
+        PlacedDmxConsole console = new PlacedDmxConsole(id, modelType, universeId, 0, cleanLoc, mountYaw, useCmd, ownerId);
+        placedConsoles.put(id, console);
+        if (database != null) {
+            database.saveConsoleAsync(console);
+        }
+        return console;
+    }
+
+    public boolean removeNearestConsole(Location target, double maxRadius) {
+        if (target == null || !target.isWorldLoaded() || target.getWorld() == null) {
+            return false;
+        }
+        World targetWorld = target.getWorld();
+        UUID closestId = null;
+        double closestDistSq = maxRadius * maxRadius;
+
+        for (PlacedDmxConsole console : placedConsoles.values()) {
+            Location cLoc = console.location();
+            if (!cLoc.isWorldLoaded() || !targetWorld.equals(cLoc.getWorld())) continue;
+            double distSq = cLoc.distanceSquared(target);
+            if (distSq <= closestDistSq) {
+                closestDistSq = distSq;
+                closestId = console.id();
+            }
+        }
+
+        if (closestId == null) {
+            return false;
+        }
+
+        placedConsoles.remove(closestId);
+        EntityTracker.removeByRoot(closestId);
+        if (database != null) {
+            database.deleteConsoleAsync(closestId);
+        }
+        return true;
+    }
+
     public void clearDemoFixtures() {
         placedFixtures.clear();
+        placedConsoles.clear();
         groupFixtureCounts.clear();
         movingHeadRenderer.fogRenderer().clearAll();
         for (World world : Bukkit.getWorlds()) {
@@ -745,6 +864,7 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
         }
         if (database != null) {
             database.deleteAllFixtures();
+            database.deleteAllConsoles();
         }
     }
 }

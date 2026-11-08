@@ -3,6 +3,9 @@ package de.archer.admx.placement;
 import de.archer.admx.AdmxPlugin;
 import de.archer.admx.control.FixtureGroup;
 import de.archer.admx.control.UiPreference;
+import de.archer.admx.dmx.ConsoleModelType;
+import de.archer.admx.dmx.DmxUniverse;
+import de.archer.admx.dmx.PlacedDmxConsole;
 import de.archer.admx.render.fixture.FixtureType;
 import de.archer.admx.render.fixture.MovingHeadProfile;
 import net.kyori.adventure.text.Component;
@@ -33,14 +36,16 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Verwaltet das in-game Platzierungs-Werkzeug (ADMX Fixture Placer), die Vorab-Gruppenzuweisung
- * vor dem Spawnen von Geräten sowie die Auswahl zwischen dem großen 54-Slot Chest-UI und dem
- * 3D-Hologramm-Steuerpult.
+ * Verwaltet das in-game Platzierungs-Werkzeug (ADMX Fixture Placer & Console Wand),
+ * die Vorab-Gruppenzuweisung vor dem Spawnen von Geräten, das Platzieren der 5 physischen
+ * 3D-DMX-Steuerpulte ({@link ConsoleModelType}) inkl. Universums-Verlinkung sowie die Auswahl
+ * zwischen Chest-UI, 3D-Hologramm-Steuerpult und Pro DMX512 Workstation.
  * <p>
  * Enthält strikte Berechtigungsprüfungen (SEC-01), Klick-Rate-Limiting (SEC-03),
  * InventoryDrag-Schutz (SEC-07) und automatische Session-Bereinigung bei Disconnect (PERF-14).
@@ -53,6 +58,7 @@ public final class FixturePlacementManager implements Listener {
     private final Map<UUID, PendingPlacement> pendingPlacements = new ConcurrentHashMap<>();
     private final Map<UUID, Boolean> playerUseCmdPref = new ConcurrentHashMap<>();
     private final Map<UUID, String> selectedGroupByPlayer = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> selectedUniverseByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, UiPreference> uiPreferenceByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastClickTimeMs = new ConcurrentHashMap<>();
 
@@ -126,6 +132,19 @@ public final class FixturePlacementManager implements Listener {
         return next;
     }
 
+    public int getSelectedUniverseId(Player player) {
+        return selectedUniverseByPlayer.getOrDefault(player.getUniqueId(), 0);
+    }
+
+    public int cycleSelectedUniverse(Player player, boolean backwards) {
+        int cur = getSelectedUniverseId(player);
+        int next = backwards
+                ? (cur - 1 + DmxUniverse.MAX_UNIVERSES) % DmxUniverse.MAX_UNIVERSES
+                : (cur + 1) % DmxUniverse.MAX_UNIVERSES;
+        selectedUniverseByPlayer.put(player.getUniqueId(), next);
+        return next;
+    }
+
     public UiPreference getUiPreference(Player player) {
         return uiPreferenceByPlayer.getOrDefault(player.getUniqueId(), UiPreference.CHEST_UI);
     }
@@ -141,7 +160,7 @@ public final class FixturePlacementManager implements Listener {
     }
 
     /**
-     * Erstellt das spawn- und klickbare Platzierungs-Item (ADMX Fixture Placer & Console Spawner).
+     * Erstellt das spawn- und klickbare Platzierungs-Item (ADMX Fixture Placer & Console Wand).
      */
     public ItemStack createPlacementWand() {
         ItemStack item = new ItemStack(Material.BLAZE_ROD);
@@ -153,10 +172,10 @@ public final class FixturePlacementManager implements Listener {
             meta.lore(List.of(
                     Component.empty(),
                     Component.text("Rechtsklick auf Block:", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false),
-                    Component.text(" » Öffnet Geräte- & Gruppen-Auswahlmenü", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
+                    Component.text(" » Öffnet Geräte-, 3D-DMX-Pult- & Gruppen-Auswahlmenü", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
                     Component.empty(),
-                    Component.text("Sneak + Rechtsklick auf Block:", NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false),
-                    Component.text(" » Pixelgenaue Platzierung am Klickpunkt", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
+                    Component.text("Sneak + Rechtsklick auf Block / 3D-Pult:", NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false),
+                    Component.text(" » Pixelgenaue Platzierung bzw. Universum am Pult wechseln", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
                     Component.empty(),
                     Component.text("Linksklick auf Block:", NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.ITALIC, false),
                     Component.text(" » Öffnet Chest-UI oder spawnt 3D-Holo-UI am Block!", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)
@@ -180,6 +199,7 @@ public final class FixturePlacementManager implements Listener {
         pendingPlacements.remove(pid);
         playerUseCmdPref.remove(pid);
         selectedGroupByPlayer.remove(pid);
+        selectedUniverseByPlayer.remove(pid);
         uiPreferenceByPlayer.remove(pid);
         lastClickTimeMs.remove(pid);
     }
@@ -266,26 +286,30 @@ public final class FixturePlacementManager implements Listener {
         FixtureGroup targetGroup = plugin.getFixtureGroup(targetGroupId);
         String groupName = (targetGroup != null) ? targetGroup.displayName() : targetGroupId;
         int groupMembers = plugin.countFixturesInGroup(targetGroupId);
+        int targetUniverse = getSelectedUniverseId(player);
         UiPreference uiPref = getUiPreference(player);
 
         PlacementGuiHolder holder = new PlacementGuiHolder();
         Inventory inv = Bukkit.createInventory(
                 holder,
-                36,
-                Component.text("ADMX Gerät platzieren » " + groupName, NamedTextColor.DARK_GRAY, TextDecoration.BOLD)
+                54,
+                Component.text("ADMX Gerät & 3D-Pult platzieren » " + groupName, NamedTextColor.DARK_GRAY, TextDecoration.BOLD)
         );
         holder.inventory = inv;
 
         ItemStack filler = createGuiItem(Material.GRAY_STAINED_GLASS_PANE, Component.text(" "), List.of());
-        for (int i = 0; i < 36; i++) {
+        for (int i = 0; i < 54; i++) {
             inv.setItem(i, filler);
         }
 
         String mountInfo = (pending != null && pending.ceilingMounted()) ? "Deckenmontage (Hängend)" : "Boden-/Stativmontage";
-        String yawInfo = (pending != null) ? String.format("%.0f°", pending.mountYaw()) : "0°";
+        String yawInfo = (pending != null) ? String.format(Locale.ROOT, "%.0f°", pending.mountYaw()) : "0°";
         Component groupInfoLine = Component.text("Ziel-Gruppe: ", NamedTextColor.GRAY)
                 .append(Component.text(groupName + " (#" + (groupMembers + 1) + ")", NamedTextColor.AQUA));
+        Component universeInfoLine = Component.text("Ziel-Universum: ", NamedTextColor.GRAY)
+                .append(Component.text("Universum " + (targetUniverse + 1) + " (Art-Net 0:0:" + targetUniverse + ")", NamedTextColor.GREEN));
 
+        // --- Reihe 1 & 2: Bühnengeräte (Fixtures) ---
         inv.setItem(10, createGuiItem(
                 FixtureType.MOVING_HEAD_SPOT.iconMaterial(),
                 Component.text("Moving Head Spotlight", NamedTextColor.AQUA, TextDecoration.BOLD),
@@ -418,7 +442,38 @@ public final class FixturePlacementManager implements Listener {
                 )
         ));
 
-        inv.setItem(27, createGuiItem(
+        // --- Reihe 4 (Slots 28..32 + 34): Physische 3D-DMX-Steuerpulte (Universe-Linkable) ---
+        ConsoleModelType[] consoleTypes = ConsoleModelType.values();
+        for (int i = 0; i < consoleTypes.length && i < 5; i++) {
+            ConsoleModelType ct = consoleTypes[i];
+            inv.setItem(28 + i, createGuiItem(
+                    ct.iconMaterial(),
+                    Component.text("🎛 3D-Pult: " + ct.displayName(), NamedTextColor.GOLD, TextDecoration.BOLD),
+                    List.of(
+                            Component.text("Modell: ", NamedTextColor.GRAY).append(Component.text(ct.subtitle(), NamedTextColor.WHITE)),
+                            Component.text("Funktion: ", NamedTextColor.GRAY).append(Component.text("Interaktives 3D-DMX512-Pult in der Welt", NamedTextColor.AQUA)),
+                            universeInfoLine,
+                            Component.text("Rechtsklick auf das platzierte Pult öffnet die", NamedTextColor.GRAY),
+                            Component.text("512-Kanal DMX-Workstation & Art-Net Steuerung!", NamedTextColor.GRAY),
+                            Component.text("» Klicken zum Platzieren (Yaw: " + yawInfo + ")", NamedTextColor.GREEN)
+                    )
+            ));
+        }
+
+        inv.setItem(34, createGuiItem(
+                Material.BEACON,
+                Component.text("🔗 Pult-Universum: Universum " + (targetUniverse + 1), NamedTextColor.GREEN, TextDecoration.BOLD),
+                List.of(
+                        Component.text("Bestimmt, mit welchem DMX512-Universum (1..16)", NamedTextColor.GRAY),
+                        Component.text("ein neu platziertes 3D-DMX-Pult verknüpft wird.", NamedTextColor.GRAY),
+                        Component.text("Art-Net 4 Port-Address: 0:0:" + targetUniverse, NamedTextColor.AQUA),
+                        Component.empty(),
+                        Component.text("» Links-/Rechtsklick zum Wechseln (1..16)", NamedTextColor.YELLOW)
+                )
+        ));
+
+        // --- Reihe 5 (Slots 36..44): Gruppen-, UI- & Lösch-Werkzeuge ---
+        inv.setItem(36, createGuiItem(
                 targetGroup != null ? targetGroup.iconMaterial() : Material.CYAN_STAINED_GLASS,
                 Component.text("Ziel-Gruppe: " + groupName, NamedTextColor.AQUA, TextDecoration.BOLD),
                 List.of(
@@ -430,7 +485,7 @@ public final class FixturePlacementManager implements Listener {
                 )
         ));
 
-        inv.setItem(29, createGuiItem(
+        inv.setItem(38, createGuiItem(
                 uiPref == UiPreference.HOLO_UI ? Material.END_CRYSTAL : Material.CHEST,
                 Component.text("Steuerpult-UI: " + uiPref.displayName(), NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD),
                 List.of(
@@ -442,7 +497,7 @@ public final class FixturePlacementManager implements Listener {
                 )
         ));
 
-        inv.setItem(30, createGuiItem(
+        inv.setItem(39, createGuiItem(
                 useCmd ? Material.NETHER_STAR : Material.IRON_BLOCK,
                 Component.text("Modell-Modus: " + (useCmd ? "Resource-Pack (3D-Modelle)" : "Vanilla-Blöcke"),
                         useCmd ? NamedTextColor.GOLD : NamedTextColor.YELLOW, TextDecoration.BOLD),
@@ -454,7 +509,7 @@ public final class FixturePlacementManager implements Listener {
                 )
         ));
 
-        inv.setItem(31, createGuiItem(
+        inv.setItem(40, createGuiItem(
                 Material.COMPARATOR,
                 Component.text(uiPref == UiPreference.HOLO_UI
                                 ? "✦ 3D Hologramm-UI hier aufstellen"
@@ -472,12 +527,23 @@ public final class FixturePlacementManager implements Listener {
                 )
         ));
 
-        inv.setItem(33, createGuiItem(
-                Material.BARRIER,
-                Component.text("Nächstes Gerät entfernen", NamedTextColor.RED, TextDecoration.BOLD),
+        inv.setItem(41, createGuiItem(
+                Material.REPEATER,
+                Component.text("🎚 Pro DMX512 Workstation öffnen (Uni " + (targetUniverse + 1) + ")", NamedTextColor.GOLD, TextDecoration.BOLD),
                 List.of(
-                        Component.text("Entfernt das nächstgelegene ADMX-Gerät", NamedTextColor.GRAY),
-                        Component.text("im Umkreis von 3 Blöcken aus Welt & Datenbank.", NamedTextColor.GRAY),
+                        Component.text("Öffnet die 512-Kanal DMX-Anwendung mit", NamedTextColor.GRAY),
+                        Component.text("Live-Fadern, HTP/LTP-Merger & Art-Net 4 Status.", NamedTextColor.GRAY),
+                        Component.empty(),
+                        Component.text("» Klicken zum Öffnen", NamedTextColor.GREEN)
+                )
+        ));
+
+        inv.setItem(43, createGuiItem(
+                Material.BARRIER,
+                Component.text("Nächstes Gerät / 3D-Pult entfernen", NamedTextColor.RED, TextDecoration.BOLD),
+                List.of(
+                        Component.text("Entfernt das nächstgelegene ADMX-Gerät oder", NamedTextColor.GRAY),
+                        Component.text("3D-DMX-Pult im Umkreis von 3 Blöcken.", NamedTextColor.GRAY),
                         Component.empty(),
                         Component.text("» Klicken zum Löschen", NamedTextColor.RED)
                 )
@@ -506,29 +572,43 @@ public final class FixturePlacementManager implements Listener {
         if (!checkClickCooldown(player)) return;
 
         int slot = event.getRawSlot();
-        if (slot < 0 || slot >= 36) return;
+        if (slot < 0 || slot >= 54) return;
 
         UUID playerId = player.getUniqueId();
         boolean useCmd = playerUseCmdPref.getOrDefault(playerId, true);
 
-        if (slot == 27) {
+        if (slot == 34) {
+            cycleSelectedUniverse(player, event.isRightClick());
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.4f);
+            openSelectionGui(player);
+            return;
+        }
+
+        if (slot == 36) {
             cycleSelectedGroup(player, event.isRightClick());
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.3f);
             openSelectionGui(player);
             return;
         }
 
-        if (slot == 29) {
+        if (slot == 38) {
             toggleUiPreference(player);
             player.playSound(player.getLocation(), Sound.BLOCK_END_PORTAL_FRAME_FILL, 0.8f, 1.3f);
             openSelectionGui(player);
             return;
         }
 
-        if (slot == 30) {
+        if (slot == 39) {
             playerUseCmdPref.put(playerId, !useCmd);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.2f);
             openSelectionGui(player);
+            return;
+        }
+
+        if (slot == 41) {
+            player.closeInventory();
+            plugin.getDmxWorkstationUi().openVirtualWorkstation(player, getSelectedUniverseId(player));
+            player.playSound(player.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.7f, 1.3f);
             return;
         }
 
@@ -538,7 +618,7 @@ public final class FixturePlacementManager implements Listener {
             return;
         }
 
-        if (slot == 31) {
+        if (slot == 40) {
             player.closeInventory();
             UiPreference pref = getUiPreference(player);
             if (pref == UiPreference.HOLO_UI) {
@@ -550,19 +630,60 @@ public final class FixturePlacementManager implements Listener {
             return;
         }
 
-        if (slot == 33) {
+        if (slot == 43) {
             if (!player.hasPermission("admx.remove") && !player.hasPermission("admx.admin")) {
                 player.sendMessage(Component.text("✘ Keine Berechtigung zum Entfernen von Geräten (admx.remove).", NamedTextColor.RED));
                 return;
             }
-            boolean removed = plugin.removeNearestFixture(pending.location(), 3.0);
+            boolean removedConsole = plugin.removeNearestConsole(pending.location(), 3.0);
+            boolean removedFixture = !removedConsole && plugin.removeNearestFixture(pending.location(), 3.0);
             player.closeInventory();
-            if (removed) {
-                player.sendMessage(Component.text("✔ Das ADMX-Gerät am Zielpunkt wurde aus Welt und Datenbank entfernt.", NamedTextColor.GREEN));
+            if (removedConsole || removedFixture) {
+                player.sendMessage(Component.text("✔ Das ADMX-" + (removedConsole ? "3D-DMX-Pult" : "Gerät")
+                        + " am Zielpunkt wurde aus Welt und Datenbank entfernt.", NamedTextColor.GREEN));
                 player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_BREAK, 0.7f, 1.2f);
             } else {
-                player.sendMessage(Component.text("✘ Kein ADMX-Gerät im Umkreis von 3 Blöcken gefunden.", NamedTextColor.RED));
+                player.sendMessage(Component.text("✘ Kein ADMX-Gerät oder 3D-Pult im Umkreis von 3 Blöcken gefunden.", NamedTextColor.RED));
                 player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.8f, 1.0f);
+            }
+            return;
+        }
+
+        // Platzierung eines 3D-DMX-Steuerpults (Slots 28..32)
+        if (slot >= 28 && slot <= 32) {
+            if (!player.hasPermission("admx.place") && !player.hasPermission("admx.admin")) {
+                player.sendMessage(Component.text("✘ Keine Berechtigung zum Platzieren von DMX-Pulten (admx.place).", NamedTextColor.RED));
+                return;
+            }
+            ConsoleModelType[] types = ConsoleModelType.values();
+            int idx = slot - 28;
+            if (idx >= 0 && idx < types.length) {
+                ConsoleModelType selectedConsole = types[idx];
+                String limitErr = plugin.checkConsolePlacementLimits(pending.location().getWorld());
+                if (limitErr != null) {
+                    player.closeInventory();
+                    player.sendMessage(Component.text("✘ " + limitErr, NamedTextColor.RED));
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.8f, 1.0f);
+                    return;
+                }
+
+                int targetUni = getSelectedUniverseId(player);
+                PlacedDmxConsole created = plugin.addPlacedConsole(
+                        UUID.randomUUID(),
+                        selectedConsole,
+                        targetUni,
+                        pending.location(),
+                        pending.mountYaw(),
+                        useCmd,
+                        player.getUniqueId()
+                );
+                player.closeInventory();
+                player.playSound(pending.location(), Sound.BLOCK_BEACON_ACTIVATE, 0.8f, 1.4f);
+                player.sendMessage(Component.text("✔ 3D-DMX-Pult ", NamedTextColor.GREEN)
+                        .append(Component.text(created.modelType().displayName(), NamedTextColor.GOLD))
+                        .append(Component.text(" platziert & mit ", NamedTextColor.GREEN))
+                        .append(Component.text("Universum " + (created.universeId() + 1) + " (Art-Net 0:0:" + created.universeId() + ")", NamedTextColor.AQUA))
+                        .append(Component.text(" verlinkt! (Rechtsklick auf Pult = DMX-Workstation öffnen)", NamedTextColor.GRAY)));
             }
             return;
         }

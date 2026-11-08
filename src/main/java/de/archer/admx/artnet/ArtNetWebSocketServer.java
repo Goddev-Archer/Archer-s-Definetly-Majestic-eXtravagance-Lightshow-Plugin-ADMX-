@@ -16,19 +16,21 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 
 /**
- * Autarker, performanter und hochsicherer RFC 6455 WebSocket-Server für Art-Net Streaming.
+ * Autarker, performanter und hochsicherer RFC 6455 WebSocket-Server für bidirektionales Art-Net Streaming.
  * <p>
  * Implementiert maximale Sicherheits- und Datenschutzstandards:
  * <ul>
  *   <li>SEC-01 &amp; SEC-02: Kryptografische Token-Authentifizierung mit Constant-Time Vergleich (MessageDigest.isEqual).</li>
  *   <li>SEC-03: Brute-Force Abwehr &amp; temporäre IP-Sperre nach Fehlversuchen.</li>
  *   <li>SEC-04: Verbindungsdeckel (Max Clients) gegen Socket-Erschöpfung.</li>
+ *   <li>SEC-13: Strikte Begrenzung eingehender WebSocket-Frames auf {@link #MAX_INCOMING_FRAME_BYTES} (1024 Bytes)
+ *       gegen Frame-Bombing / OutOfMemoryError sowie synchronisierte Socket-Schreibzugriffe.</li>
  *   <li>PERF-09: Vollständige Entkopplung vom Paper-Hauptthread über asynchrones I/O mit Drop-Tail Pufferung (Zero-Lag).</li>
  *   <li>Datenschutz: Überträgt ausschließlich rohe DMX-Bytes (0..255). Keinerlei Spielernamen, Koordinaten oder Chatdaten!</li>
  * </ul>
@@ -37,12 +39,14 @@ public final class ArtNetWebSocketServer implements AutoCloseable {
 
     private static final String WS_MAGIC_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
     private static final long BAN_DURATION_MS = 15 * 60 * 1000L; // 15 Minuten Sperre
+    public static final int MAX_INCOMING_FRAME_BYTES = 1024; // SEC-13: Schutz vor Frame-Alloc-OOM (ArtDmx = 530 Bytes)
 
     private final String bindHost;
     private final int port;
     private final String expectedToken;
     private final int maxClients;
     private final int maxFailedAttempts;
+    private volatile BiConsumer<byte[], Integer> incomingPacketHandler;
 
     private ServerSocket serverSocket;
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -64,6 +68,10 @@ public final class ArtNetWebSocketServer implements AutoCloseable {
         this.expectedToken = (expectedToken != null && !expectedToken.isBlank()) ? expectedToken : generateSecureToken();
         this.maxClients = Math.max(1, maxClients);
         this.maxFailedAttempts = Math.max(3, maxFailedAttempts);
+    }
+
+    public void setIncomingPacketHandler(BiConsumer<byte[], Integer> handler) {
+        this.incomingPacketHandler = handler;
     }
 
     public static String generateSecureToken() {
@@ -181,13 +189,20 @@ public final class ArtNetWebSocketServer implements AutoCloseable {
 
             socket.setSoTimeout(0); // Timeout nach Handshake aufheben für langlebige Streams
 
-            WsClientConnection client = new WsClientConnection(socket, in, out, clientIp);
+            WsClientConnection client = new WsClientConnection(socket, in, out, clientIp, this::onClientBinaryMessage);
             connectedClients.add(client);
             Bukkit.getLogger().info("[ADMX-ArtNet] Neuer Art-Net Client verbunden: " + clientIp + " (Aktive Clients: " + connectedClients.size() + ")");
 
             client.runReadLoop(() -> removeClient(client));
         } catch (Exception e) {
             try { socket.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    private void onClientBinaryMessage(byte[] payload, Integer length) {
+        BiConsumer<byte[], Integer> handler = this.incomingPacketHandler;
+        if (handler != null && payload != null && length != null && length > 0) {
+            handler.accept(payload, length);
         }
     }
 
@@ -253,11 +268,14 @@ public final class ArtNetWebSocketServer implements AutoCloseable {
     }
 
     private void registerFailedAttempt(String ip) {
+        if (ipSecurityMap.size() > 512) {
+            ipSecurityMap.clear();
+        }
         IpSecurityState state = ipSecurityMap.computeIfAbsent(ip, k -> new IpSecurityState());
         state.failedAttempts++;
         if (state.failedAttempts >= maxFailedAttempts) {
             state.bannedUntilMs = System.currentTimeMillis() + BAN_DURATION_MS;
-            Bukkit.getLogger().warning("[ADMX-ArtNet] IP " + ip + " wurde wegen wiederholter Fehlversuche für 15 Minuten temporär gesperrt!");
+            Bukkit.getLogger().warning("[ADMX-ArtNet] IP " + ip + " nach " + state.failedAttempts + " Fehlversuchen für 15 Minuten gesperrt!");
         }
     }
 
@@ -266,27 +284,24 @@ public final class ArtNetWebSocketServer implements AutoCloseable {
     }
 
     private void removeClient(WsClientConnection client) {
-        connectedClients.remove(client);
-        client.close();
-        Bukkit.getLogger().info("[ADMX-ArtNet] Client getrennt: " + client.ip + " (Verbleibend: " + connectedClients.size() + ")");
+        if (connectedClients.remove(client)) {
+            Bukkit.getLogger().info("[ADMX-ArtNet] Client getrennt: " + client.ip + " (Verbleibend: " + connectedClients.size() + ")");
+        }
     }
 
     /**
-     * Sendet ein Art-Net Binärpaket an alle autorisierten Clients.
-     * Erzeugt keine Server-Lags: Langsame Clients werden gepuffert bzw. übersprungen.
+     * Sendet ein binäres Art-Net Paket (OpDmx) asynchron an alle verbundenen Clients.
      */
-    public void broadcastArtNetPacket(byte[] artNetPacket) {
-        if (!running.get() || connectedClients.isEmpty() || artNetPacket == null) return;
-
-        byte[] wsFrame = wrapInBinaryWebSocketFrame(artNetPacket);
+    public void broadcastArtNetPacket(byte[] artDmxPayload) {
+        if (!running.get() || connectedClients.isEmpty() || artDmxPayload == null) {
+            return;
+        }
+        byte[] wsFrame = wrapInBinaryWebSocketFrame(artDmxPayload);
         for (WsClientConnection client : connectedClients) {
             client.sendFrameAsync(wsFrame);
         }
     }
 
-    /**
-     * Kapselt Nutzdaten in einen RFC 6455 Binary Frame (OpCode 0x02, FIN = 1, Unmasked).
-     */
     private static byte[] wrapInBinaryWebSocketFrame(byte[] payload) {
         int len = payload.length;
         byte[] frame;
@@ -354,16 +369,25 @@ public final class ArtNetWebSocketServer implements AutoCloseable {
         private final Socket socket;
         private final InputStream in;
         private final OutputStream out;
+        private final Object writeLock = new Object();
         private final String ip;
+        private final BiConsumer<byte[], Integer> onBinaryFrame;
         private final AtomicBoolean open = new AtomicBoolean(true);
         private volatile byte[] pendingLatestFrame = null;
         private final AtomicBoolean isWriting = new AtomicBoolean(false);
 
-        public WsClientConnection(Socket socket, InputStream in, OutputStream out, String ip) {
+        public WsClientConnection(
+                Socket socket,
+                InputStream in,
+                OutputStream out,
+                String ip,
+                BiConsumer<byte[], Integer> onBinaryFrame
+        ) {
             this.socket = socket;
             this.in = in;
             this.out = out;
             this.ip = ip;
+            this.onBinaryFrame = onBinaryFrame;
         }
 
         public void sendFrameAsync(byte[] frame) {
@@ -383,8 +407,10 @@ public final class ArtNetWebSocketServer implements AutoCloseable {
                     pendingLatestFrame = null;
                     if (frame == null) break;
 
-                    out.write(frame);
-                    out.flush();
+                    synchronized (writeLock) {
+                        out.write(frame);
+                        out.flush();
+                    }
                 }
             } catch (Exception e) {
                 close();
@@ -414,22 +440,39 @@ public final class ArtNetWebSocketServer implements AutoCloseable {
                     if (payloadLen == 126) {
                         int h = in.read();
                         int l = in.read();
+                        if (h == -1 || l == -1) break;
                         payloadLen = ((h << 8) | l) & 0xFFFF;
                     } else if (payloadLen == 127) {
                         payloadLen = 0;
+                        boolean eof = false;
                         for (int i = 0; i < 8; i++) {
-                            payloadLen = (payloadLen << 8) | in.read();
+                            int b = in.read();
+                            if (b == -1) {
+                                eof = true;
+                                break;
+                            }
+                            payloadLen = (payloadLen << 8) | (b & 0xFF);
                         }
+                        if (eof) break;
+                    }
+
+                    // SEC-13: Strikte Prüfung der Frame-Größe vor Speicher-Allokation (Schutz vor OOM-Bombing)
+                    if (payloadLen < 0 || payloadLen > MAX_INCOMING_FRAME_BYTES) {
+                        break;
                     }
 
                     byte[] maskingKey = new byte[4];
                     if (masked) {
-                        in.readNBytes(maskingKey, 0, 4);
+                        int readKey = in.readNBytes(maskingKey, 0, 4);
+                        if (readKey < 4) break;
                     }
 
-                    byte[] payload = in.readNBytes((int) payloadLen);
+                    int len = (int) payloadLen;
+                    byte[] payload = in.readNBytes(len);
+                    if (payload.length < len) break;
+
                     if (masked) {
-                        for (int i = 0; i < payload.length; i++) {
+                        for (int i = 0; i < len; i++) {
                             payload[i] = (byte) (payload[i] ^ maskingKey[i % 4]);
                         }
                     }
@@ -437,6 +480,9 @@ public final class ArtNetWebSocketServer implements AutoCloseable {
                     // Ping (0x09) beantworten mit Pong (0x0A)
                     if (opcode == 0x09) {
                         sendPong(payload);
+                    } else if (opcode == 0x02 && onBinaryFrame != null) {
+                        // Bidirektionales Art-Net Input-Paket vom Client (OpDmx)
+                        onBinaryFrame.accept(payload, len);
                     } else if (opcode == 0x08) { // Close
                         break;
                     }
@@ -449,13 +495,16 @@ public final class ArtNetWebSocketServer implements AutoCloseable {
         }
 
         private void sendPong(byte[] pingPayload) {
+            if (pingPayload == null || pingPayload.length > 125) return;
             try {
                 byte[] pong = new byte[2 + pingPayload.length];
                 pong[0] = (byte) 0x8A; // FIN + Pong
                 pong[1] = (byte) pingPayload.length;
                 System.arraycopy(pingPayload, 0, pong, 2, pingPayload.length);
-                out.write(pong);
-                out.flush();
+                synchronized (writeLock) {
+                    out.write(pong);
+                    out.flush();
+                }
             } catch (Exception ignored) {}
         }
 
