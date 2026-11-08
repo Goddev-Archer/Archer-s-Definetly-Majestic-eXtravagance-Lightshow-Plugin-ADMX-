@@ -1,15 +1,26 @@
 package de.archer.admx.dmx;
 
+import de.archer.admx.AdmxPlugin;
 import de.archer.admx.artnet.ArtNetDmxUniverseManager;
 import de.archer.admx.artnet.ArtNetUdpNode;
+import de.archer.admx.audio.AutoShowProfile;
+import de.archer.admx.audio.BeatSnapshot;
+import de.archer.admx.audio.MusicGenre;
+import de.archer.admx.audio.SmartAutoDirector;
+import de.archer.admx.boiler.AdmxBoilerDesktopSource;
 import de.archer.admx.db.AdmxDatabase;
 import de.archer.admx.render.color.Oklab;
 import de.archer.admx.render.fixture.FixtureState;
+import de.archer.admx.render.fixture.FixtureType;
+import de.archer.admx.render.fixture.MovingHeadProfile;
 import org.bukkit.Color;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -155,5 +166,105 @@ class DmxUniverseAndArtNetSecurityTest {
         } finally {
             Locale.setDefault(prev);
         }
+    }
+
+    @Test
+    void testBoilerDesktopSourceRendersHeadlessAndChecksPermissions() {
+        AdmxBoilerDesktopSource source = new AdmxBoilerDesktopSource();
+        assertFalse(AdmxBoilerDesktopSource.hasPermission(null));
+
+        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(
+                AdmxBoilerDesktopSource.VIRTUAL_WIDTH,
+                AdmxBoilerDesktopSource.VIRTUAL_HEIGHT,
+                java.awt.image.BufferedImage.TYPE_INT_ARGB
+        );
+        java.awt.Graphics2D g2 = img.createGraphics();
+        try {
+            assertDoesNotThrow(() -> source.draw(g2, new java.awt.Rectangle(0, 0, img.getWidth(), img.getHeight())));
+        } finally {
+            g2.dispose();
+        }
+    }
+
+    @Test
+    void testMultiPassAutoShowLearningAndIdiotProofPllSync(@TempDir File tempDir) {
+        SmartAutoDirector director = new SmartAutoDirector();
+        assertEquals(SmartAutoDirector.DirectorMode.ADAPTIVE_LIVE, director.directorMode());
+
+        // 1. Multi-Pass Lernen starten
+        director.startLearning(0, "My Festival Drop");
+        assertEquals(SmartAutoDirector.DirectorMode.LEARNING_PASS, director.directorMode());
+
+        AdmxPlugin.PlacedFixture spotFixture = new AdmxPlugin.PlacedFixture(
+                UUID.randomUUID(),
+                "front_truss",
+                0,
+                null,
+                0f,
+                false,
+                FixtureType.MOVING_HEAD_SPOT,
+                MovingHeadProfile.defaultBlockbenchModel(true)
+        );
+
+        // Simuliere 70 Beats (mehr als 1 Pass = 64 Beats) von Breakdown bis zum Drop
+        for (int beatIdx = 0; beatIdx < 70; beatIdx++) {
+            long bar = beatIdx / 4;
+            int beatInBar = beatIdx % 4;
+            boolean isDropSection = beatIdx >= 48;
+            float energy = isDropSection ? 0.92f : 0.12f;
+            BeatSnapshot snap = new BeatSnapshot(
+                    130.0,
+                    0.25,
+                    0.95f,
+                    isDropSection,
+                    energy,
+                    MusicGenre.TECHNO,
+                    0.95f,
+                    bar,
+                    beatInBar,
+                    isDropSection,
+                    isDropSection,
+                    isDropSection,
+                    isDropSection ? 0.9f : 0.0f,
+                    isDropSection ? 9.0f : 0.0f
+            );
+            FixtureState st = director.computeState(spotFixture, 4, beatIdx + 1L, snap);
+            assertNotNull(st);
+        }
+
+        assertTrue(director.activeProfile().learnedBeats() >= 64, "Es müssen mindestens 64 Beats gelernt worden sein");
+        assertTrue(director.activeProfile().completedPasses() >= 1, "Mindestens 1 Pass muss abgeschlossen sein");
+        assertTrue(director.activeProfile().detectedDrops() >= 1, "Mindestens 1 Drop muss erkannt worden sein");
+
+        // 2. Lern-Algorithmus abschalten & einfrieren (unter Name + ID speichern)
+        AutoShowProfile frozen = director.stopLearningAndFreeze("Cyber Drop 2026", 0);
+        assertEquals(SmartAutoDirector.DirectorMode.LOCKED_PROFILE, director.directorMode());
+        assertEquals("show_01", frozen.profileId());
+        assertEquals("Cyber Drop 2026", frozen.displayName());
+        assertTrue(frozen.maxStrobeHz() <= 10.0f, "SEC-09: Strobe-Cap <= 10 Hz");
+
+        // 3. In SQLite speichern & wieder laden
+        try (AdmxDatabase db = new AdmxDatabase(tempDir)) {
+            db.saveAutoShowProfile(frozen);
+            Map<String, AutoShowProfile> loaded = db.loadOrSeedAutoShowProfiles();
+            assertTrue(loaded.containsKey("show_01"));
+            assertEquals("Cyber Drop 2026", loaded.get("show_01").displayName());
+        }
+
+        // 4. Idiotenschutz-Prüfung:
+        // Schutzstufe 3: Wenn die Musik pausiert (BeatSnapshot.idle()), muss die Show in Standby gehen (kein Strobe!)
+        FixtureState silentState = director.computeState(spotFixture, 4, 500L, BeatSnapshot.idle());
+        assertTrue(director.isMusicPausedStandby(), "Bei Musik-Stopp muss Auto-Standby aktiv sein");
+        assertEquals(0.0f, silentState.strobeHz(), 0.001f);
+
+        // Schutzstufe 1 & 2: Mitten im Drop aufgerufene Show erkennt den Drop sofort und synchronisiert auf die Beat-Phase
+        BeatSnapshot midSongDrop = new BeatSnapshot(
+                130.0, 0.0, 0.98f, true, 0.92f, MusicGenre.TECHNO, 0.95f,
+                42L, 0, true, true, true, 0.95f, 9.0f
+        );
+        FixtureState dropState = director.computeState(spotFixture, 4, 501L, midSongDrop);
+        assertFalse(director.isMusicPausedStandby());
+        assertEquals(AutoShowProfile.SongSection.PEAK_DROP, director.currentSection());
+        assertEquals(1.0f, dropState.dimmer(), 0.01f);
     }
 }

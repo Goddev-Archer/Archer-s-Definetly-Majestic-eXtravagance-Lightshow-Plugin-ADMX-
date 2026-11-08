@@ -323,7 +323,7 @@ public final class ChestConsoleUi implements Listener {
                         Component.text(strobeStatus, beat.strobeActive() ? NamedTextColor.GREEN : NamedTextColor.GRAY),
                         Component.text("Genre: " + beat.genre().description(), NamedTextColor.GRAY),
                         Component.empty(),
-                        Component.text("Linksklick: Smart Auto-Show für alle Gruppen aktivieren", NamedTextColor.YELLOW),
+                        Component.text("Linksklick: Auto-Show Studio (Song-DNA Learner & Quick-Recall) öffnen", NamedTextColor.YELLOW),
                         Component.text("Rechtsklick: Audio-Eingabe wechseln (Boiler / Stream / Demo)", NamedTextColor.AQUA),
                         Component.text("Shift-Klick: Hardware Sound-To-Light (S2L) Pult öffnen", NamedTextColor.LIGHT_PURPLE)
                 )
@@ -412,7 +412,16 @@ public final class ChestConsoleUi implements Listener {
         }
 
         switch (slot) {
-            case 19 -> active.setControlMode(active.controlMode().next());
+            case 19 -> {
+                ControlMode nextMode = active.controlMode().next();
+                active.setControlMode(nextMode);
+                if (nextMode == ControlMode.AUTO_SHOW) {
+                    plugin.getDatabase().saveGroupAsync(active);
+                    player.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 0.8f, 1.4f);
+                    plugin.getAutoShowStudioChestUi().openStudio(player);
+                    return;
+                }
+            }
             case 20 -> {
                 if (shift) active.setDimmer(active.dimmer() > 0.1f ? 0f : 1f);
                 else active.setDimmer(active.dimmer() + (right ? -0.10f : 0.10f));
@@ -484,7 +493,9 @@ public final class ChestConsoleUi implements Listener {
                         g.setControlMode(ControlMode.AUTO_SHOW);
                     }
                     plugin.getDatabase().saveAllGroupsAsync(plugin.getFixtureGroups().values());
-                    player.sendMessage(Component.text("✦ Smart Auto-Show mit autonomer Beat- & Genre-Erkennung aktiviert!", NamedTextColor.GREEN));
+                    player.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 0.8f, 1.4f);
+                    plugin.getAutoShowStudioChestUi().openStudio(player);
+                    return;
                 }
             }
             case 53 -> {

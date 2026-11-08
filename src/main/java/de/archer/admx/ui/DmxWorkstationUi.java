@@ -461,6 +461,18 @@ public final class DmxWorkstationUi implements Listener {
                 List.of(Component.text("Wechselt 8 DMX-Kanäle weiter.", NamedTextColor.GRAY))
         ));
 
+        inv.setItem(47, createItem(
+                Material.JUKEBOX,
+                Component.text("🧠 Auto-Show Studio (Song-DNA Learner & Quick-Recall)", NamedTextColor.AQUA, TextDecoration.BOLD),
+                List.of(
+                        Component.text("Öffnet das Auto-Show Studio zum Lernen eigener", NamedTextColor.GRAY),
+                        Component.text("Song-Muster, Speichern unter ID & 1-Klick-Abruf", NamedTextColor.GRAY),
+                        Component.text("mit 100% synchronem Beat-PLL Idiotenschutz!", NamedTextColor.WHITE),
+                        Component.empty(),
+                        Component.text("» Klicken zum Öffnen des Auto-Show Studios", NamedTextColor.GREEN)
+                )
+        ));
+
         inv.setItem(48, createItem(
                 Material.SUNFLOWER,
                 Component.text("✦ Direkt-Look: Full Warm-White (Gerät #" + fixtureNumber + ")", NamedTextColor.GOLD, TextDecoration.BOLD),
@@ -485,6 +497,18 @@ public final class DmxWorkstationUi implements Listener {
                         Component.text("Setzt für Gerät #" + fixtureNumber + " sofort:", NamedTextColor.GRAY),
                         Component.text("Dimmer=255, Cyan/Aqua, Zoom=Eng (Beam).", NamedTextColor.WHITE),
                         Component.text("» Klicken zum Aktivieren", NamedTextColor.GREEN)
+                )
+        ));
+
+        inv.setItem(51, createItem(
+                Material.PAINTING,
+                Component.text("🖥 Boiler Desktop-UI Monitor spawnen (4x2)", NamedTextColor.AQUA, TextDecoration.BOLD),
+                List.of(
+                        Component.text("Erstellt vor dir einen interaktiven Boiler-Bildschirm", NamedTextColor.GRAY),
+                        Component.text("mit echtem Maus-Dragging für Fader & 2D Pan/Tilt-Pad!", NamedTextColor.WHITE),
+                        Component.text("Alternativ: /boiler display source <id> admx-dmx", NamedTextColor.DARK_GRAY),
+                        Component.empty(),
+                        Component.text("» Klicken zum Aufstellen vor dir", NamedTextColor.GREEN)
                 )
         ));
 
@@ -693,6 +717,11 @@ public final class DmxWorkstationUi implements Listener {
             updateBank(player, session, linkedConsole, (session.faderBank() + 1) % 64);
             return;
         }
+        if (slot == 47) {
+            player.closeInventory();
+            plugin.getAutoShowStudioChestUi().openStudio(player);
+            return;
+        }
         if (slot == 48) {
             int baseCh = (session.faderBank() / 2) * 16;
             universe.setConsoleFader(baseCh, 128);      // Pan 0°
@@ -721,6 +750,17 @@ public final class DmxWorkstationUi implements Listener {
             universe.setConsoleFader(baseCh + 10, 28);  // Enger Beam-Zoom
             player.playSound(player.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 0.8f, 1.6f);
             renderInventory(player, session);
+            return;
+        }
+        if (slot == 51) {
+            player.closeInventory();
+            int id = de.archer.admx.boiler.AdmxBoilerIntegration.spawnDesktopDisplayInFrontOfPlayer(player, 4, 2, session.universeId());
+            if (id >= 0) {
+                player.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 0.8f, 1.5f);
+                player.sendMessage(Component.text("🖥 Boiler Desktop-UI (Display #" + id + ") vor dir aufgestellt! Ziele auf den Screen zum Ziehen der Fader & des 2D X/Y-Pads.", NamedTextColor.GREEN));
+            } else {
+                player.sendMessage(Component.text("✘ Boiler ist nicht aktiv oder Display konnte nicht erstellt werden.", NamedTextColor.RED));
+            }
             return;
         }
         if (slot == 52) {

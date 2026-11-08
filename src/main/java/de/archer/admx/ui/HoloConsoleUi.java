@@ -1,6 +1,11 @@
 package de.archer.admx.ui;
 
 import de.archer.admx.AdmxPlugin;
+import de.archer.admx.audio.AutoShowProfile;
+import de.archer.admx.audio.AutoShowProfile.SongSection;
+import de.archer.admx.audio.BeatSnapshot;
+import de.archer.admx.audio.SmartAutoDirector;
+import de.archer.admx.audio.SmartAutoDirector.DirectorMode;
 import de.archer.admx.audio.SoundAction;
 import de.archer.admx.audio.SoundToLightConfig;
 import de.archer.admx.control.ControlMode;
@@ -408,9 +413,11 @@ public final class HoloConsoleUi implements Listener {
                 new Matrix4f().rotate(qRot).translate(closeX + closeW * 0.5f, tabY + tabH * 0.5f - 0.008f, 0.010f).scale(0.100f),
                 Component.text("✖", NamedTextColor.WHITE, TextDecoration.BOLD), Color.fromARGB(0, 0, 0, 0));
 
-        // 4. Haupt-Arbeitsbereich: Standard DMX (Farbe/Pan/Tilt/Fader) ODER Sound-to-Light Spektrogramm
+        // 4. Haupt-Arbeitsbereich: Standard DMX (Farbe/Pan/Tilt/Fader), Sound-to-Light ODER Auto-Show Studio
         if (currentGroup.controlMode() == ControlMode.SOUND_ACTIVE) {
             renderSoundToLightPanel(group, origin, qRot, detector, currentGroup);
+        } else if (currentGroup.controlMode() == ControlMode.AUTO_SHOW) {
+            renderAutoShowStudioPanel(group, origin, qRot, detector, currentGroup);
         } else {
             // Modul Links: Farb-Steuerung (Hue-Regenbogen-Leiste + SV-Farbfeld)
             renderHueAndSvPicker(group, origin, qRot, detector, currentGroup);
@@ -438,6 +445,135 @@ public final class HoloConsoleUi implements Listener {
         }
 
         return group;
+    }
+
+    private void renderAutoShowStudioPanel(
+            RenderGroup group,
+            Location origin,
+            Quaternionf qRot,
+            HoloPlanePointDetector detector,
+            FixtureGroup activeGroup
+    ) {
+        SmartAutoDirector director = plugin.getSmartAutoDirector();
+        BeatSnapshot beat = plugin.getAudioDspManager().getSnapshot();
+        DirectorMode mode = director.directorMode();
+        AutoShowProfile profile = director.activeProfile();
+        SongSection activeSec = director.currentSection();
+        int selectedSlot = director.selectedQuickSlot();
+
+        addTextLabel(group, "lbl_auto_studio_hdr", origin,
+                new Matrix4f().rotate(qRot).translate(-0.120f, 0.568f, 0.010f).scale(0.080f),
+                Component.text("AUTO-SHOW STUDIO • " + mode.displayName() + " • PLL: " + Math.round(beat.bpm()) + " BPM",
+                        NamedTextColor.AQUA, TextDecoration.BOLD),
+                Color.fromARGB(0, 0, 0, 0));
+
+        // 1. Live 4-Sektionen Song-DNA Anzeige (X = -0.580f .. +0.120f, Y = 0.455f, H = 0.080f)
+        SongSection[] secs = SongSection.values();
+        String[] shortNames = {"BREAK", "VERSE", "BUILD", "DROP"};
+        Color[] secCols = {
+                Color.fromRGB(35, 165, 220),
+                Color.fromRGB(45, 200, 110),
+                Color.fromRGB(240, 175, 35),
+                Color.fromRGB(235, 55, 75)
+        };
+        float secStartX = -0.580f;
+        float secW = 0.165f;
+        float secGap = 0.012f;
+        for (int i = 0; i < secs.length; i++) {
+            boolean isCurrent = (secs[i] == activeSec);
+            float sx = secStartX + i * (secW + secGap);
+            Color c = secCols[i];
+            Color bg = isCurrent
+                    ? Color.fromARGB(245, c.getRed(), c.getGreen(), c.getBlue())
+                    : Color.fromARGB(170, 22, 28, 42);
+            Matrix4f secPlane = new Matrix4f()
+                    .rotate(qRot)
+                    .translate(sx, 0.455f, 0.005f)
+                    .scale(secW, 0.080f, 1f);
+            addQuad(group, "auto_sec_bg_" + i, origin, secPlane, bg);
+            addTextLabel(group, "auto_sec_lbl_" + i, origin,
+                    new Matrix4f().rotate(qRot).translate(sx + secW * 0.5f, 0.455f + 0.030f, 0.012f).scale(0.080f),
+                    Component.text((isCurrent ? "⚡ " : "") + shortNames[i],
+                            isCurrent ? NamedTextColor.WHITE : NamedTextColor.GRAY, TextDecoration.BOLD),
+                    Color.fromARGB(0, 0, 0, 0));
+        }
+
+        // 2. Multi-Pass Lern-Fortschrittsbalken (Y = 0.365f)
+        float barX = -0.580f;
+        float barW = 0.696f;
+        float barH = 0.068f;
+        int confPct = Math.round(profile.confidence() * 100f);
+        addQuad(group, "auto_conf_bg", origin,
+                new Matrix4f().rotate(qRot).translate(barX, 0.365f, 0.004f).scale(barW, barH, 1f),
+                Color.fromARGB(215, 16, 22, 32));
+        float fillW = Math.max(0.015f, profile.confidence() * barW);
+        addQuad(group, "auto_conf_fill", origin,
+                new Matrix4f().rotate(qRot).translate(barX, 0.365f, 0.007f).scale(fillW, barH, 1f),
+                mode == DirectorMode.LEARNING_PASS ? Color.fromARGB(235, 245, 165, 30) : Color.fromARGB(235, 40, 205, 110));
+        addTextLabel(group, "auto_conf_lbl", origin,
+                new Matrix4f().rotate(qRot).translate(barX + barW * 0.5f, 0.365f + 0.024f, 0.012f).scale(0.076f),
+                Component.text("DNA REIFE: " + confPct + "% (Pass #" + (profile.completedPasses() + 1)
+                        + " | " + profile.learnedBeats() + " Beats | Stil: " + profile.choreoStyle().displayName() + ")",
+                        NamedTextColor.WHITE, TextDecoration.BOLD),
+                Color.fromARGB(0, 0, 0, 0));
+
+        // 3. Lern- & Speicher-Steuerung (Y = 0.255f)
+        float ctrlW = 0.224f;
+        float ctrlGap = 0.012f;
+        renderActionButton(group, origin, qRot, detector, "btn_holo_learn",
+                barX, 0.255f, ctrlW, 0.085f,
+                mode == DirectorMode.LEARNING_PASS ? "● LEARN AKTIV" : "▶ LEARN START",
+                mode == DirectorMode.LEARNING_PASS ? Color.fromRGB(215, 45, 55) : Color.fromRGB(30, 145, 85),
+                player -> {
+                    director.startLearning(selectedSlot, "Learned Show #" + (selectedSlot + 1));
+                    player.sendMessage(Component.text("🧠 Multi-Pass Lern-Algorithmus auf 3D-Holo gestartet!", NamedTextColor.GREEN));
+                });
+
+        renderActionButton(group, origin, qRot, detector, "btn_holo_save",
+                barX + (ctrlW + ctrlGap), 0.255f, ctrlW, 0.085f,
+                "💾 SAVE #" + (selectedSlot + 1),
+                Color.fromRGB(205, 130, 25),
+                player -> {
+                    AutoShowProfile saved = director.stopLearningAndFreeze(null, selectedSlot);
+                    plugin.saveAutoShowProfile(saved);
+                    player.sendMessage(Component.text("💾 Auto-Show gespeichert unter ID " + saved.profileId() + "!", NamedTextColor.GOLD));
+                });
+
+        renderActionButton(group, origin, qRot, detector, "btn_holo_style",
+                barX + (ctrlW + ctrlGap) * 2, 0.255f, ctrlW, 0.085f,
+                "🎲 STIL WECHSELN",
+                Color.fromRGB(115, 55, 175),
+                player -> {
+                    director.mutateChoreoStyle();
+                    if (director.directorMode() == DirectorMode.LOCKED_PROFILE) {
+                        plugin.saveAutoShowProfile(director.activeProfile());
+                    }
+                });
+
+        // 4. Quick-Recall Slots #1..#4 direkt auf dem 3D-Holo-Panel (Y = 0.130f)
+        for (int s = 0; s < 4; s++) {
+            final int slotIdx = s;
+            String slotId = String.format(java.util.Locale.ROOT, "show_%02d", s + 1);
+            AutoShowProfile saved = plugin.getAutoShowProfile(slotId);
+            boolean isRunning = (mode == DirectorMode.LOCKED_PROFILE && slotId.equalsIgnoreCase(profile.profileId()));
+            float qx = secStartX + s * (secW + secGap);
+            String label = saved != null ? ("#" + (s + 1) + " " + saved.displayName().substring(0, Math.min(8, saved.displayName().length()))) : ("#" + (s + 1) + " LEER");
+            Color qCol = isRunning ? Color.fromRGB(35, 190, 95) : (s == selectedSlot ? Color.fromRGB(185, 135, 30) : Color.fromRGB(40, 62, 95));
+
+            renderActionButton(group, origin, qRot, detector, "btn_holo_qslot_" + s,
+                    qx, 0.130f, secW, 0.095f,
+                    label,
+                    qCol,
+                    player -> {
+                        director.setSelectedQuickSlot(slotIdx);
+                        if (saved != null) {
+                            director.recallProfile(saved);
+                            player.sendMessage(Component.text("⚡ Auto-Show " + saved.displayName() + " [" + saved.profileId() + "] synchron geladen!", NamedTextColor.AQUA));
+                        } else {
+                            director.startLearning(slotIdx, "Learned Show #" + (slotIdx + 1));
+                        }
+                    });
+        }
     }
 
     private void renderSoundToLightPanel(

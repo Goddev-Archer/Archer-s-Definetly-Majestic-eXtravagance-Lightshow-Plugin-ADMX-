@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="de.archer.admx.boiler.PlasmaDesktopAndFlowboardTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-08T03:54:01.559Z" hostname="DESKTOP-0001" time="0.306">
+  <properties/>
+  <testcase name="testHardSnapStaccatoMovementPattern()" classname="de.archer.admx.boiler.PlasmaDesktopAndFlowboardTest" time="0.003"/>
+  <testcase name="testOffscreenJava2DRenderDesktop()" classname="de.archer.admx.boiler.PlasmaDesktopAndFlowboardTest" time="0.296"/>
+  <testcase name="testFlowboardDefaultSongFlowAndPins()" classname="de.archer.admx.boiler.PlasmaDesktopAndFlowboardTest" time="0.001"/>
+  <testcase name="testPlasmaWindowManagerAndWindowStacking()" classname="de.archer.admx.boiler.PlasmaDesktopAndFlowboardTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

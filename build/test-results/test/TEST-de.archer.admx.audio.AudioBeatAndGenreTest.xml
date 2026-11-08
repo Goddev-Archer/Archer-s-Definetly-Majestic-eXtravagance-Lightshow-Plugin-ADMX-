@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="de.archer.admx.audio.AudioBeatAndGenreTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-07T23:45:52.600Z" hostname="DESKTOP-0001" time="0.41">
+<testsuite name="de.archer.admx.audio.AudioBeatAndGenreTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-08T03:54:01.181Z" hostname="DESKTOP-0001" time="0.376">
   <properties/>
-  <testcase name="testSmartAutoDirectorTechnoVsRapDistinctBehaviors()" classname="de.archer.admx.audio.AudioBeatAndGenreTest" time="0.184"/>
-  <testcase name="testTechnoFourOnTheFloorDetectionAndClassification()" classname="de.archer.admx.audio.AudioBeatAndGenreTest" time="0.062"/>
-  <testcase name="testStrobeAutonomousDeactivationOnBreakdown()" classname="de.archer.admx.audio.AudioBeatAndGenreTest" time="0.029"/>
+  <testcase name="testSmartAutoDirectorTechnoVsRapDistinctBehaviors()" classname="de.archer.admx.audio.AudioBeatAndGenreTest" time="0.187"/>
+  <testcase name="testTechnoFourOnTheFloorDetectionAndClassification()" classname="de.archer.admx.audio.AudioBeatAndGenreTest" time="0.04"/>
+  <testcase name="testStrobeAutonomousDeactivationOnBreakdown()" classname="de.archer.admx.audio.AudioBeatAndGenreTest" time="0.024"/>
   <testcase name="testRapHipHopSyncopatedDetectionAndClassification()" classname="de.archer.admx.audio.AudioBeatAndGenreTest" time="0.001"/>
   <testcase name="testLiveRecordingWithOffbeatHiHatsAndCrowdNoise()" classname="de.archer.admx.audio.AudioBeatAndGenreTest" time="0.048"/>
   <testcase name="testSchranzHardTechnoWithContinuousRumbleDetection()" classname="de.archer.admx.audio.AudioBeatAndGenreTest" time="0.048"/>
   <testcase name="testBandpassFilterIsolatesSubBass()" classname="de.archer.admx.audio.AudioBeatAndGenreTest" time="0.001"/>
   <testcase name="testLaserAndStrobeAutoDirectorFollowsStrobeActiveFlag()" classname="de.archer.admx.audio.AudioBeatAndGenreTest" time="0.001"/>
-  <testcase name="testSmartAutoDirectorStrictStrobeSafety()" classname="de.archer.admx.audio.AudioBeatAndGenreTest" time="0.002"/>
+  <testcase name="testSmartAutoDirectorStrictStrobeSafety()" classname="de.archer.admx.audio.AudioBeatAndGenreTest" time="0.003"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

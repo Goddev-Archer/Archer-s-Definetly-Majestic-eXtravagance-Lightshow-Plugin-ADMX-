@@ -83,18 +83,66 @@ public final class AdmxCommand implements BasicCommand {
         if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
             player.sendMessage(Component.text("--- ADMX Stage Lighting & Console Befehle ---", NamedTextColor.GOLD));
             player.sendMessage(Component.text("/admx wand - Gibt dir den ADMX Fixture Placer & Console Wand", NamedTextColor.AQUA));
-            player.sendMessage(Component.text("/admx dmx [1-16] - Öffnet die 512-Kanal Pro DMX Workstation & Art-Net Merger", NamedTextColor.GOLD));
+            player.sendMessage(Component.text("/admx desktop [spawn|set] [uni|displayId] - Spawnt das Boiler Desktop-UI (Maus/Drag/Scroll)", NamedTextColor.GREEN));
+            player.sendMessage(Component.text("/admx dmx [1-16] - Öffnet die 512-Kanal Pro DMX Workstation (Chest-UI)", NamedTextColor.GOLD));
             player.sendMessage(Component.text("/admx s2l - Öffnet das Hardware-Style Sound-to-Light Pult (Spektrogramm & Filter)", NamedTextColor.YELLOW));
             player.sendMessage(Component.text("/admx artnet [status|start|stop|token|loopback] - Art-Net 4 UDP & WebSocket-Bridge", NamedTextColor.GOLD));
             player.sendMessage(Component.text("/admx ui [chest|holo|open|close] - Wählt/öffnet das Chest-UI oder 3D-Hologramm-UI", NamedTextColor.LIGHT_PURPLE));
             player.sendMessage(Component.text("/admx flow [boardId] - Öffnet das visuelle Flowboard-Programmier-Pult", NamedTextColor.LIGHT_PURPLE));
-            player.sendMessage(Component.text("/admx auto [on|off|s2l|status|source|genre|bpm] - Smart Auto-Show & Sound-to-Light", NamedTextColor.AQUA));
+            player.sendMessage(Component.text("/admx auto [studio|learn|save|load|list|on|off|s2l|source|genre|bpm] - Auto-Show Studio & Song-DNA", NamedTextColor.AQUA));
             player.sendMessage(Component.text("/admx group [list|select|create|delete] <id> [Name] - Verwaltet SQLite-Gerätegruppen", NamedTextColor.GREEN));
             player.sendMessage(Component.text("/admx scene [play|stop|rec|load] [1-4] - Szenen-Programmierung & Sequencer", NamedTextColor.GOLD));
             player.sendMessage(Component.text("/admx spawn [spot|beam|wash|...|grand_console|ddc6|dmx_master|wing|dm7]", NamedTextColor.YELLOW));
             player.sendMessage(Component.text("/admx safe - Schaltet den persönlichen Photosensitivitäts-Schutzmodus um", NamedTextColor.AQUA));
             player.sendMessage(Component.text("/admx purge - Bereinigt verwaiste Display-Entities", NamedTextColor.RED));
             player.sendMessage(Component.text("/admx clear confirm - Entfernt alle platzierten ADMX-Geräte (mit Bestätigung)", NamedTextColor.YELLOW));
+            return;
+        }
+
+        if (args[0].equalsIgnoreCase("desktop") || args[0].equalsIgnoreCase("boiler")) {
+            if (!player.hasPermission("admx.console") && !player.hasPermission("admx.control") && !player.hasPermission("admx.admin")) {
+                player.sendMessage(Component.text("✘ Keine Berechtigung für das Boiler Desktop-UI (admx.console).", NamedTextColor.RED));
+                return;
+            }
+            if (!de.archer.admx.boiler.AdmxBoilerIntegration.isBoilerAvailable()) {
+                player.sendMessage(Component.text("✘ Das Boiler-Plugin ist auf diesem Server aktuell nicht aktiv.", NamedTextColor.RED));
+                return;
+            }
+            String sub = args.length > 1 ? args[1].toLowerCase() : "spawn";
+            if (sub.equals("set") || sub.equals("display")) {
+                if (args.length < 3) {
+                    player.sendMessage(Component.text("Verwendung: /admx desktop set <boilerDisplayId> [universum 1-16]", NamedTextColor.YELLOW));
+                    return;
+                }
+                try {
+                    int dispId = Integer.parseInt(args[2]);
+                    int uni = (args.length > 3) ? Math.clamp(Integer.parseInt(args[3]) - 1, 0, 15) : 0;
+                    if (de.archer.admx.boiler.AdmxBoilerIntegration.activateOnDisplay(dispId, uni)) {
+                        player.sendMessage(Component.text("✔ Boiler-Display #" + dispId + " zeigt jetzt das interaktive ADMX Pro Stage OS (Universum " + (uni + 1) + ")!", NamedTextColor.GREEN));
+                    } else {
+                        player.sendMessage(Component.text("✘ Boiler-Display #" + dispId + " wurde nicht gefunden.", NamedTextColor.RED));
+                    }
+                } catch (NumberFormatException e) {
+                    player.sendMessage(Component.text("✘ Ungültige Display-ID.", NamedTextColor.RED));
+                }
+                return;
+            }
+
+            int uni = 0;
+            if (args.length > 2) {
+                try {
+                    uni = Math.clamp(Integer.parseInt(args[2]) - 1, 0, 15);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            int createdId = de.archer.admx.boiler.AdmxBoilerIntegration.spawnDesktopDisplayInFrontOfPlayer(player, 4, 2, uni);
+            if (createdId >= 0) {
+                player.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 0.8f, 1.5f);
+                player.sendMessage(Component.text("🖥 ADMX Pro Stage OS Desktop-Display (Boiler #" + createdId + ", 4x2 Widescreen) vor dir aufgestellt!", NamedTextColor.GREEN));
+                player.sendMessage(Component.text(" » Ziele auf den Bildschirm, um Fader & das 2D Pan/Tilt-Pad per Maus zu ziehen oder mit dem Mausrad zu drehen!", NamedTextColor.AQUA));
+            } else {
+                player.sendMessage(Component.text("✘ Konnte kein Boiler-Display erstellen (Alternativ: /boiler display source <id> admx-dmx).", NamedTextColor.RED));
+            }
             return;
         }
 
@@ -204,15 +252,90 @@ public final class AdmxCommand implements BasicCommand {
             return;
         }
 
-        if (args[0].equalsIgnoreCase("auto")) {
-            if (!player.hasPermission("admx.control") && !player.hasPermission("admx.admin")) {
+        if (args[0].equalsIgnoreCase("auto") || args[0].equalsIgnoreCase("autoshow")) {
+            if (!player.hasPermission("admx.control") && !player.hasPermission("admx.admin") && !player.hasPermission("admx.console")) {
                 player.sendMessage(Component.text("✘ Keine Berechtigung für Smart Auto-Show (admx.control erforderlich).", NamedTextColor.RED));
                 return;
             }
             var dsp = plugin.getAudioDspManager();
-            String sub = args.length > 1 ? args[1].toLowerCase() : "status";
+            var director = plugin.getSmartAutoDirector();
+            String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "studio";
 
             switch (sub) {
+                case "studio", "ui", "gui" -> {
+                    plugin.getAutoShowStudioChestUi().openStudio(player);
+                }
+                case "learn" -> {
+                    int slotIdx = director.selectedQuickSlot();
+                    String initName = null;
+                    if (args.length > 2) {
+                        try {
+                            slotIdx = Math.clamp(Integer.parseInt(args[2]) - 1, 0, de.archer.admx.audio.AutoShowProfile.MAX_QUICK_SLOTS - 1);
+                            if (args.length > 3) {
+                                initName = String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length));
+                            }
+                        } catch (NumberFormatException ex) {
+                            initName = String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length));
+                        }
+                    }
+                    for (FixtureGroup g : plugin.getFixtureGroups().values()) {
+                        g.setControlMode(ControlMode.AUTO_SHOW);
+                    }
+                    plugin.getDatabase().saveAllGroupsAsync(plugin.getFixtureGroups().values());
+                    director.startLearning(slotIdx, initName != null ? initName : ("Learned Show #" + (slotIdx + 1)));
+                    player.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 0.85f, 1.5f);
+                    player.sendMessage(Component.text("🧠 Multi-Pass Lern-Algorithmus gestartet (Ziel: Slot #" + (slotIdx + 1) + ")! ", NamedTextColor.GREEN)
+                            .append(Component.text("Nutze '/admx auto save <Name>', sobald du mit der gelernten Show zufrieden bist.", NamedTextColor.GRAY)));
+                }
+                case "save", "freeze" -> {
+                    int slotIdx = director.selectedQuickSlot();
+                    String customName = (args.length > 2)
+                            ? String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length))
+                            : null;
+                    var saved = director.stopLearningAndFreeze(customName, slotIdx);
+                    plugin.saveAutoShowProfile(saved);
+                    for (FixtureGroup g : plugin.getFixtureGroups().values()) {
+                        g.setControlMode(ControlMode.AUTO_SHOW);
+                    }
+                    plugin.getDatabase().saveAllGroupsAsync(plugin.getFixtureGroups().values());
+                    player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.75f, 1.3f);
+                    player.sendMessage(Component.text("💾 Lern-Algorithmus abgeschaltet & Auto-Show gespeichert unter ID ", NamedTextColor.GREEN)
+                            .append(Component.text(saved.profileId() + " (" + saved.displayName() + ")", NamedTextColor.GOLD))
+                            .append(Component.text("! [3-Stufen Beat-PLL Idiotenschutz aktiv]", NamedTextColor.AQUA)));
+                }
+                case "load", "recall" -> {
+                    if (args.length < 3) {
+                        player.sendMessage(Component.text("Verwendung: /admx auto load <show_01..show_08 | 1..8>", NamedTextColor.YELLOW));
+                        return;
+                    }
+                    String target = args[2].toLowerCase(Locale.ROOT);
+                    if (target.matches("^[1-8]$")) {
+                        target = "show_0" + target;
+                    }
+                    var profile = plugin.getAutoShowProfile(target);
+                    if (profile == null) {
+                        player.sendMessage(Component.text("✘ Auto-Show '" + target + "' wurde nicht gefunden. Nutze /admx auto list.", NamedTextColor.RED));
+                        return;
+                    }
+                    director.recallProfile(profile);
+                    for (FixtureGroup g : plugin.getFixtureGroups().values()) {
+                        g.setControlMode(ControlMode.AUTO_SHOW);
+                    }
+                    plugin.getDatabase().saveAllGroupsAsync(plugin.getFixtureGroups().values());
+                    player.playSound(player.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 0.85f, 1.5f);
+                    player.sendMessage(Component.text("⚡ Auto-Show ", NamedTextColor.AQUA)
+                            .append(Component.text(profile.displayName() + " [" + profile.profileId() + "]", NamedTextColor.GOLD))
+                            .append(Component.text(" geladen! (100% Beat-PLL synchronisiert)", NamedTextColor.GREEN)));
+                }
+                case "list" -> {
+                    player.sendMessage(Component.text("--- Gespeicherte ADMX Auto-Show Profile (Song-DNA) ---", NamedTextColor.GOLD));
+                    for (var p : plugin.getAutoShowProfiles().values()) {
+                        player.sendMessage(Component.text(" • [" + p.profileId() + "] ", NamedTextColor.YELLOW)
+                                .append(Component.text(p.displayName(), NamedTextColor.AQUA))
+                                .append(Component.text(String.format(Locale.ROOT, " (Slot #%d | %.1f BPM | Stil: %s | Reife: %d%%)",
+                                        p.slotIndex() + 1, p.referenceBpm(), p.choreoStyle().displayName(), Math.round(p.confidence() * 100f)), NamedTextColor.GRAY)));
+                    }
+                }
                 case "s2l", "sound", "soundtolight" -> {
                     plugin.getSoundToLightChestUi().openUi(player, plugin.getPlacementManager().getSelectedGroupId(player));
                 }
@@ -580,17 +703,18 @@ public final class AdmxCommand implements BasicCommand {
             return (args.length <= 1) ? List.of("safe") : List.of();
         }
         if (args.length == 0 || args.length == 1) {
-            return List.of("wand", "dmx", "ui", "s2l", "artnet", "group", "scene", "flow", "auto", "spawn", "safe", "purge", "clear", "help");
+            return List.of("wand", "desktop", "dmx", "ui", "s2l", "artnet", "group", "scene", "flow", "auto", "autoshow", "spawn", "safe", "purge", "clear", "help");
         }
         if (args.length == 2) {
             return switch (args[0].toLowerCase()) {
+                case "desktop", "boiler" -> List.of("spawn", "set");
                 case "dmx", "workstation" -> List.of("1", "2", "3", "4", "5", "6", "7", "8");
                 case "artnet", "bridge" -> List.of("status", "start", "stop", "token", "loopback");
                 case "spawn" -> List.of("spot", "beam", "wash", "fan", "needle", "laserhead", "blinder", "strobe", "hazer", "lowfog", "flame",
                         "grand_console", "ddc6", "dmx_master", "wing", "dm7");
                 case "ui", "console" -> List.of("chest", "holo", "open", "close");
                 case "flow", "flowboard" -> new ArrayList<>(plugin.getFlowboards().keySet());
-                case "auto" -> List.of("on", "off", "s2l", "status", "source", "genre", "bpm");
+                case "auto", "autoshow" -> List.of("studio", "learn", "save", "load", "list", "on", "off", "s2l", "status", "source", "genre", "bpm");
                 case "group" -> List.of("list", "select", "create", "delete");
                 case "scene" -> List.of("play", "stop", "rec", "load");
                 case "clear" -> List.of("confirm");
@@ -601,7 +725,13 @@ public final class AdmxCommand implements BasicCommand {
             if (args[0].equalsIgnoreCase("artnet") && args[1].equalsIgnoreCase("token")) {
                 return List.of("regenerate");
             }
-            if (args[0].equalsIgnoreCase("auto")) {
+            if (args[0].equalsIgnoreCase("auto") || args[0].equalsIgnoreCase("autoshow")) {
+                if (args[1].equalsIgnoreCase("load") || args[1].equalsIgnoreCase("recall")) {
+                    return new ArrayList<>(plugin.getAutoShowProfiles().keySet());
+                }
+                if (args[1].equalsIgnoreCase("learn")) {
+                    return List.of("1", "2", "3", "4", "5", "6", "7", "8");
+                }
                 if (args[1].equalsIgnoreCase("source")) {
                     return List.of("boiler", "stream", "demo");
                 }

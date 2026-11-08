@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import de.archer.admx.AdmxPlugin;
+import de.archer.admx.audio.AutoShowProfile;
 import de.archer.admx.control.ControlMode;
 import de.archer.admx.control.FixtureGroup;
 import de.archer.admx.control.MovementPattern;
@@ -188,6 +189,16 @@ public final class AdmxDatabase implements AutoCloseable {
                             mount_yaw REAL NOT NULL,
                             use_cmd INTEGER NOT NULL,
                             owner_id TEXT,
+                            integrity_crc INTEGER NOT NULL
+                        );
+                        """);
+
+                st.execute("""
+                        CREATE TABLE IF NOT EXISTS auto_show_profiles (
+                            profile_id TEXT PRIMARY KEY,
+                            display_name TEXT NOT NULL,
+                            slot_index INTEGER NOT NULL,
+                            profile_json TEXT NOT NULL,
                             integrity_crc INTEGER NOT NULL
                         );
                         """);
@@ -828,6 +839,93 @@ public final class AdmxDatabase implements AutoCloseable {
                 + String.format(Locale.ROOT, "%.4f|%.4f|%.4f", x, y, z);
         crc.update(payload.getBytes(StandardCharsets.UTF_8));
         return crc.getValue();
+    }
+
+    public void saveAutoShowProfileAsync(AutoShowProfile profile) {
+        if (profile == null) return;
+        if (asyncWriter.isShutdown()) {
+            saveAutoShowProfile(profile);
+        } else {
+            asyncWriter.execute(() -> saveAutoShowProfile(profile));
+        }
+    }
+
+    public synchronized void saveAutoShowProfile(AutoShowProfile profile) {
+        if (profile == null) return;
+        long crc = profile.computeIntegrityCrc();
+        String sql = """
+                INSERT INTO auto_show_profiles (
+                    profile_id, display_name, slot_index, profile_json, integrity_crc
+                ) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(profile_id) DO UPDATE SET
+                    display_name = excluded.display_name,
+                    slot_index = excluded.slot_index,
+                    profile_json = excluded.profile_json,
+                    integrity_crc = excluded.integrity_crc;
+                """;
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
+            ps.setString(1, profile.profileId());
+            ps.setString(2, profile.displayName());
+            ps.setInt(3, profile.slotIndex());
+            ps.setString(4, profile.toJson());
+            ps.setLong(5, crc);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            Bukkit.getLogger().warning("[ADMX-DB] Fehler beim Speichern von AutoShowProfile " + profile.profileId() + ": " + e.getMessage());
+        }
+    }
+
+    public synchronized Map<String, AutoShowProfile> loadOrSeedAutoShowProfiles() {
+        Map<String, AutoShowProfile> map = new LinkedHashMap<>();
+        try {
+            Connection conn = getConnection();
+            try (Statement st = conn.createStatement();
+                 ResultSet rs = st.executeQuery("SELECT * FROM auto_show_profiles ORDER BY slot_index ASC, profile_id ASC;")) {
+                while (rs.next()) {
+                    String json = rs.getString("profile_json");
+                    long storedCrc = rs.getLong("integrity_crc");
+                    AutoShowProfile profile = AutoShowProfile.fromJson(json);
+                    long expectedCrc = profile.computeIntegrityCrc();
+                    if (storedCrc != expectedCrc) {
+                        Bukkit.getLogger().warning("[ADMX-DB] CRC32-Abweichung bei AutoShowProfile " + profile.profileId()
+                                + " erkannt (gespeichert=" + storedCrc + ", berechnet=" + expectedCrc + ").");
+                    }
+                    map.put(profile.profileId(), profile);
+                }
+            }
+            if (map.isEmpty()) {
+                for (AutoShowProfile seed : AutoShowProfile.createDefaultSeedProfiles()) {
+                    saveAutoShowProfile(seed);
+                    map.put(seed.profileId(), seed);
+                }
+            }
+        } catch (SQLException e) {
+            Bukkit.getLogger().warning("[ADMX-DB] Fehler beim Laden der AutoShowProfiles: " + e.getMessage());
+            for (AutoShowProfile seed : AutoShowProfile.createDefaultSeedProfiles()) {
+                map.put(seed.profileId(), seed);
+            }
+        }
+        return map;
+    }
+
+    public void deleteAutoShowProfileAsync(String profileId) {
+        if (profileId == null || profileId.isBlank()) return;
+        if (asyncWriter.isShutdown()) {
+            deleteAutoShowProfile(profileId);
+        } else {
+            asyncWriter.execute(() -> deleteAutoShowProfile(profileId));
+        }
+    }
+
+    public synchronized boolean deleteAutoShowProfile(String profileId) {
+        if (profileId == null || profileId.isBlank()) return false;
+        try (PreparedStatement ps = getConnection().prepareStatement("DELETE FROM auto_show_profiles WHERE profile_id = ?;")) {
+            ps.setString(1, profileId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            Bukkit.getLogger().warning("[ADMX-DB] Fehler beim Löschen von AutoShowProfile " + profileId + ": " + e.getMessage());
+            return false;
+        }
     }
 
     /**

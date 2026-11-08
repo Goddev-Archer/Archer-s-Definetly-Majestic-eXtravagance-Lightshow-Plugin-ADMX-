@@ -394,6 +394,30 @@ public final class FixtureGroup {
                 calcPan = panDegrees + fanAngle;
                 calcTilt = tiltDegrees + (float) Math.cos(t) * (12f * movementAmplitude);
             }
+            case HARD_SNAP_STACCATO -> {
+                // Hard-Snap Staccato: Springt exakt im Takt auf diskrete Haltepositionen und friert dort starr ein
+                // 8 markante Positionen (Cross, Fan, Punch, Sky, Center), ideal für 146 BPM Kicks
+                int step = (int) Math.floor((t / twoPi) * 8.0) % 8;
+                float[] snapPan = {-65f, 0f, 65f, 0f, -50f, 50f, -85f, 85f};
+                float[] snapTilt = {-25f, 45f, -25f, 60f, -15f, -15f, 35f, 35f};
+                int idx = Math.abs((step + memberIndex) % snapPan.length);
+                calcPan = panDegrees + (snapPan[idx] * movementAmplitude) + (normalizedPos * 35f * phaseSpread);
+                calcTilt = tiltDegrees + (snapTilt[idx] * movementAmplitude);
+            }
+            case CLIFFHANGER_FREEZE -> {
+                // Cliffhanger Freeze: Fixture friert sofort starr in einer dramatischen Spannungs-Pose ein
+                calcPan = panDegrees + (normalizedPos * 30f * phaseSpread);
+                calcTilt = 45f * movementAmplitude;
+            }
+            case CINEMATIC_STOMP_SNAP -> {
+                // Cinematic Stomp Snap: Schlägt auf schwere Orchester-/Tom-Schläge hart ein
+                int step = (int) Math.floor((t / twoPi) * 4.0) % 6;
+                float[] stompPan = {-75f, 75f, 0f, -90f, 90f, 0f};
+                float[] stompTilt = {45f, 45f, -30f, 60f, 60f, 20f};
+                int idx = Math.abs((step + memberIndex) % stompPan.length);
+                calcPan = panDegrees + (stompPan[idx] * movementAmplitude) + (normalizedPos * 25f * phaseSpread);
+                calcTilt = tiltDegrees + (stompTilt[idx] * movementAmplitude);
+            }
         }
 
         // Strobe-Berechnung (nicht auf Nebelmaschinen anwenden, um Cache-Resets zu verhindern -> PERF-03)

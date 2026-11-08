@@ -1,6 +1,7 @@
 package de.archer.admx;
 
 import de.archer.admx.audio.AudioDspManager;
+import de.archer.admx.audio.AutoShowProfile;
 import de.archer.admx.audio.BeatSnapshot;
 import de.archer.admx.audio.MusicGenre;
 import de.archer.admx.audio.SmartAutoDirector;
@@ -81,6 +82,7 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
     private DmxWorkstationUi dmxWorkstationUi;
     private FlowboardGui flowboardGui;
     private de.archer.admx.ui.SoundToLightChestUi soundToLightChestUi;
+    private de.archer.admx.ui.AutoShowStudioChestUi autoShowStudioChestUi;
     private de.archer.admx.artnet.ArtNetBridgeManager artNetBridgeManager;
 
     private final Map<String, FixtureGroup> fixtureGroups = new LinkedHashMap<>();
@@ -88,6 +90,7 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
     private final Map<UUID, PlacedDmxConsole> placedConsoles = new ConcurrentHashMap<>();
     private final Map<String, Integer> groupFixtureCounts = new ConcurrentHashMap<>();
     private final Map<String, Flowboard> flowboards = new ConcurrentHashMap<>();
+    private final Map<String, AutoShowProfile> autoShowProfiles = new ConcurrentHashMap<>();
 
     // Konfigurierbare Sicherheits- und Performance-Budgets (aus config.yml)
     private int maxFixturesPerWorld = 250;
@@ -141,6 +144,11 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
         this.sceneTimeline.loadCues(this.database.loadSceneCues());
         this.placedFixtures.putAll(this.database.loadFixtures());
         this.placedConsoles.putAll(this.database.loadConsoles());
+        this.autoShowProfiles.putAll(this.database.loadOrSeedAutoShowProfiles());
+        if (!this.autoShowProfiles.isEmpty()) {
+            this.smartAutoDirector.recallProfile(this.autoShowProfiles.values().iterator().next());
+            this.smartAutoDirector.setAdaptiveLiveMode();
+        }
 
         // Automatische Migration aus alter fixtures.json, falls die SQLite-Tabelle noch leer war
         this.legacyStorage = new FixtureStorage(getDataFolder());
@@ -171,6 +179,7 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
         this.dmxWorkstationUi = new DmxWorkstationUi(this);
         this.flowboardGui = new FlowboardGui(this);
         this.soundToLightChestUi = new de.archer.admx.ui.SoundToLightChestUi(this);
+        this.autoShowStudioChestUi = new de.archer.admx.ui.AutoShowStudioChestUi(this);
 
         this.flowboards.putAll(this.database.loadFlowboards());
         if (this.flowboards.isEmpty()) {
@@ -199,11 +208,14 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(this.dmxWorkstationUi, this);
         getServer().getPluginManager().registerEvents(this.flowboardGui, this);
         getServer().getPluginManager().registerEvents(this.soundToLightChestUi, this);
+        getServer().getPluginManager().registerEvents(this.autoShowStudioChestUi, this);
 
         registerCommand("admx", new AdmxCommand(this));
 
         this.artNetBridgeManager = new de.archer.admx.artnet.ArtNetBridgeManager(this);
         this.artNetBridgeManager.start();
+
+        de.archer.admx.boiler.AdmxBoilerIntegration.initialize(this);
 
         Bukkit.getScheduler().runTaskTimer(this, this::onRenderTick, 1L, 1L);
 
@@ -238,6 +250,9 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
         }
         if (soundToLightChestUi != null) {
             soundToLightChestUi.stop();
+        }
+        if (autoShowStudioChestUi != null) {
+            autoShowStudioChestUi.stop();
         }
         if (audioDspManager != null) {
             audioDspManager.close();
@@ -770,6 +785,27 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
 
     public SmartAutoDirector getSmartAutoDirector() {
         return smartAutoDirector;
+    }
+
+    public de.archer.admx.ui.AutoShowStudioChestUi getAutoShowStudioChestUi() {
+        return autoShowStudioChestUi;
+    }
+
+    public Map<String, AutoShowProfile> getAutoShowProfiles() {
+        return autoShowProfiles;
+    }
+
+    public AutoShowProfile getAutoShowProfile(String profileId) {
+        if (profileId == null) return null;
+        return autoShowProfiles.get(profileId.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    public void saveAutoShowProfile(AutoShowProfile profile) {
+        if (profile == null) return;
+        autoShowProfiles.put(profile.profileId(), profile);
+        if (database != null) {
+            database.saveAutoShowProfileAsync(profile);
+        }
     }
 
     public DmxWorkstationUi getDmxWorkstationUi() {

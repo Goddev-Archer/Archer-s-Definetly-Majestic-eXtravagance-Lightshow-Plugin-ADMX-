@@ -26,14 +26,19 @@ tasks.withType<JavaCompile> {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.3.build.214-stable")
     compileOnly("org.xerial:sqlite-jdbc:3.49.1.0")
+    compileOnly(files("C:/dev/Boiler/api/build/libs/api-3.0.3.jar"))
+    compileOnly(files("c:/dev/test-server/plugins/MapEngine-1.8.12-all.jar"))
     testImplementation("io.papermc.paper:paper-api:26.3.build.214-stable")
     testImplementation("org.xerial:sqlite-jdbc:3.49.1.0")
+    testImplementation(files("C:/dev/Boiler/api/build/libs/api-3.0.3.jar"))
+    testImplementation(files("c:/dev/test-server/plugins/MapEngine-1.8.12-all.jar"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.test {
     useJUnitPlatform()
+    systemProperty("java.awt.headless", "true")
 }
 
 tasks.register<Zip>("packageResourcePack") {

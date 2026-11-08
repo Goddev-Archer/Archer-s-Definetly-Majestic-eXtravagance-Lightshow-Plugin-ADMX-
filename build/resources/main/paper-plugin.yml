@@ -7,6 +7,16 @@ authors:
 description: Archer's Definetly Majestic eXtravagance Lightshow-Plugin
 libraries:
   - org.xerial:sqlite-jdbc:3.49.1.0
+dependencies:
+  server:
+    Boiler:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    MapEngine:
+      load: BEFORE
+      required: false
+      join-classpath: true
 permissions:
   admx.admin:
     description: Vollzugriff auf alle ADMX-Befehle, Platzierung, Steuerpulte und Datenbank-Aktionen
