@@ -1,0 +1,48 @@
+# ============================================================================
+# ADMX - Archer's Definetly Majestic eXtravagance Lightshow-Plugin
+# Konfigurationsdatei für Sicherheits-Budgets, Performance & Render-Limits
+# ============================================================================
+
+limits:
+  # Maximale Anzahl platzierter Bühnengeräte pro Welt (Schutz vor DoS / Entity-Erschöpfung)
+  max-fixtures-per-world: 250
+  # Maximale Anzahl an Nebelmaschinen (Kaltnebel / Raumnebel) pro Welt
+  max-fog-machines-per-world: 12
+  # Maximale Anzahl an physisch platzierten 3D-DMX-Steuerpulten pro Welt
+  max-consoles-per-world: 32
+  # Globales Hard-Limit für gleichzeitig vom EntityTracker verwaltete Display-Entities
+  max-entities-total: 8000
+  # Maximale Anzahl an Wellen-Zellen pro Nebelmaschine
+  max-fog-cells-per-machine: 180
+  # Mindest-Cooldown zwischen UI-Interaktionen pro Spieler in Millisekunden
+  ui-click-cooldown-ms: 75
+
+rendering:
+  # Maximale Distanz (in Blöcken), bis zu der Geräte für Spieler aktiv gerendert werden
+  render-distance-blocks: 96.0
+  # Maximale Reichweite von Lichtstrahlen und Lasern (in Blöcken)
+  beam-max-reach: 48.0
+  # Update-Intervall (in Ticks) für das Nebel-Wellennetz (Client interpoliert flüssig dazwischen)
+  fog-wave-update-interval-ticks: 4
+  # Maximale Strobe-Frequenz in Hz zum Schutz vor Photosensitivität (PSE)
+  max-strobe-hz: 10.0
+
+artnet-bridge:
+  # Ob die WebSocket-Bridge für Art-Net aktiv sein soll
+  enabled: true
+  # Lokale Bind-Adresse (0.0.0.0 für alle Interfaces oder 127.0.0.1 bei Nginx / Reverse-Proxy)
+  bind-host: "0.0.0.0"
+  # Port für den WebSocket-Server
+  port: 8765
+  # Geheimer Authentifizierungs-Token (falls leer, wird beim ersten Start ein sicherer 32-Zeichen Token generiert)
+  auth-token: ""
+  # Maximale Anzahl gleichzeitig verbundener Client-PCs (Schutz vor Socket-Erschöpfung)
+  max-clients: 5
+  # Schutz vor Brute-Force: Maximale Fehlversuche vor 15-minütiger IP-Sperre
+  rate-limit-max-attempts: 5
+  # Nativer Art-Net 4 UDP-Node (Port 6454) für direktes QLC+ / GrandMA / Chamsys Patching
+  udp-node-enabled: true
+  # Bind-Adresse für den lokalen Art-Net 4 UDP-Node (Standard: 127.0.0.1 gegen externes UDP-Spoofing)
+  udp-bind-host: "127.0.0.1"
+  # Ob der UDP-Node automatisch an 127.0.0.1:6454 zurücksenden soll (Standard: false, da QLC+ meist als Sender agiert)
+  udp-loopback-tx: false

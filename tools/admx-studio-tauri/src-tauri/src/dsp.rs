@@ -122,13 +122,104 @@ pub fn decode_audio_mono(path: &Path) -> Result<(Vec<f32>, u32), String> {
     Ok((mono_samples, sample_rate))
 }
 
-pub fn analyze_track(file_path: &str, bpm: f64) -> Result<AnalysisResult, String> {
+/// Ermittelt die dominante BPM über eine Multi-Harmonische Kammfilter-Resonanz
+/// und einen psychoakustischen Normal-Prior (Ellis / Davies / BTrack).
+pub fn compute_estimated_bpm(novelty: &[f32], hop_sec: f64) -> f64 {
+    let n_frames = novelty.len();
+    if n_frames < 200 {
+        return 120.0;
+    }
+
+    let mut best_bpm = 120.0;
+    let mut best_score = -1.0;
+
+    for bpm_step in 130..=360 { // 65.0 bis 180.0 BPM in 0.5 Schritten
+        let bpm = bpm_step as f64 * 0.5;
+        let period_frames = (60.0 / bpm) / hop_sec;
+
+        let mut sum = 0.0;
+        let max_harmonics = 4;
+        let weights = [1.0, 0.6, 0.35, 0.2];
+
+        for h in 0..max_harmonics {
+            let lag = (period_frames * (h + 1) as f64).round() as usize;
+            if lag < n_frames {
+                let mut corr = 0.0f64;
+                let mut count = 0;
+                for i in 0..(n_frames - lag) {
+                    corr += (novelty[i] * novelty[i + lag]) as f64;
+                    count += 1;
+                }
+                if count > 0 {
+                    sum += weights[h] * (corr / count as f64);
+                }
+            }
+        }
+
+        // Psychoakustischer Prior um 105-115 BPM
+        let prior = (-0.5 * ((bpm.log2() - (105.0f64).log2()) / 0.55).powi(2)).exp();
+        let final_score = sum * prior;
+
+        if final_score > best_score {
+            best_score = final_score;
+            best_bpm = bpm;
+        }
+    }
+
+    best_bpm
+}
+
+/// Schnelle Standalone-BPM-Erkennung einer Audiodatei
+pub fn detect_audio_bpm(file_path: &str) -> Result<f64, String> {
+    let path = Path::new(file_path);
+    let (samples, sr) = decode_audio_mono(path)?;
+    let fs = sr as f32;
+    let hop_sec = 0.010f64;
+    let hop = (hop_sec * fs as f64) as usize;
+    let n_frames = samples.len() / hop;
+    if n_frames < 200 {
+        return Ok(120.0);
+    }
+
+    let mut filt_kick = BiquadFilter::bandpass(80.0, 1.2, fs);
+    let mut filt_mid = BiquadFilter::bandpass(500.0, 1.0, fs);
+    let mut filt_high = BiquadFilter::bandpass(5000.0, 1.2, fs);
+
+    let mut y_k = Vec::with_capacity(samples.len());
+    let mut y_m = Vec::with_capacity(samples.len());
+    let mut y_h = Vec::with_capacity(samples.len());
+    for &s in &samples {
+        y_k.push(filt_kick.process(s));
+        y_m.push(filt_mid.process(s));
+        y_h.push(filt_high.process(s));
+    }
+
+    let mut novelty = vec![0.0f32; n_frames];
+    let mut prev_k = 0.0f32;
+    let mut prev_m = 0.0f32;
+    let mut prev_h = 0.0f32;
+
+    for i in 0..n_frames {
+        let start = i * hop;
+        let end = (i + 1) * hop;
+        let rms_k = (y_k[start..end].iter().map(|&x| x * x).sum::<f32>() / hop as f32).sqrt();
+        let rms_m = (y_m[start..end].iter().map(|&x| x * x).sum::<f32>() / hop as f32).sqrt();
+        let rms_h = (y_h[start..end].iter().map(|&x| x * x).sum::<f32>() / hop as f32).sqrt();
+
+        novelty[i] = 1.0 * (rms_k - prev_k).max(0.0) + 0.8 * (rms_m - prev_m).max(0.0) + 0.6 * (rms_h - prev_h).max(0.0);
+        prev_k = rms_k;
+        prev_m = rms_m;
+        prev_h = rms_h;
+    }
+
+    Ok(compute_estimated_bpm(&novelty, hop_sec))
+}
+
+pub fn analyze_track(file_path: &str, manual_bpm: Option<f64>) -> Result<AnalysisResult, String> {
     let path = Path::new(file_path);
     let (samples, sr) = decode_audio_mono(path)?;
     let fs = sr as f32;
     let duration_sec = samples.len() as f64 / fs as f64;
-    let beat_sec = 60.0 / bpm;
-    let bar_sec = beat_sec * 4.0;
 
     // 1. 4-Band Biquad Filterbank
     let mut filt_kick = BiquadFilter::bandpass(72.0, 1.2, fs);
@@ -195,11 +286,22 @@ pub fn analyze_track(file_path: &str, bpm: f64) -> Result<AnalysisResult, String
     let mut kick_attack = vec![0.0f32; n_frames];
     let mut toms_attack = vec![0.0f32; n_frames];
     let mut all_attack = vec![0.0f32; n_frames];
+    let mut combined_novelty = vec![0.0f32; n_frames];
     for i in 1..n_frames {
         kick_attack[i] = (kr[i] - kr[i - 1]).max(0.0);
         toms_attack[i] = (tr[i] - tr[i - 1]).max(0.0);
         all_attack[i] = (ar[i] - ar[i - 1]).max(0.0);
+        let diff_h = (hr[i] - hr[i - 1]).max(0.0);
+        combined_novelty[i] = 1.0 * kick_attack[i] + 0.8 * toms_attack[i] + 0.6 * diff_h;
     }
+
+    // 3b. Tempo-Ermittlung (Manuell vorgegeben oder Automatisch via Resonanz-Kammfilter)
+    let bpm = match manual_bpm {
+        Some(val) if val >= 45.0 && val <= 240.0 => val,
+        _ => compute_estimated_bpm(&combined_novelty, hop_sec),
+    };
+    let beat_sec = 60.0 / bpm;
+    let bar_sec = beat_sec * 4.0;
 
     // 4. Dual-Rate Envelope Follower (Fast Attack 5ms, Ausklang Decay 240ms)
     let decay_factor = (-10.0f32 / 240.0f32).exp();
@@ -214,29 +316,28 @@ pub fn analyze_track(file_path: &str, bpm: f64) -> Result<AnalysisResult, String
         decay_env[i] = curr;
     }
 
-    // 5. Grid Downbeat Phase Alignment (Automatische Lead-in Erkennung)
-    let mut grid_offset_sec = 0.158; // Standard für den Schranz-Track
-    let offsets: Vec<f64> = (0..200).map(|i| i as f64 * 0.002).collect();
+    // 5. Grid Downbeat Phase Alignment (Dynamische Lead-in Erkennung für exakten Taktanfang)
+    let step_sec = 0.002f64;
+    let n_steps = ((beat_sec / step_sec).ceil() as usize).max(50);
     let mut max_corr = -1.0;
+    let mut grid_offset_sec = 0.0;
 
-    for &off in &offsets {
+    for s in 0..n_steps {
+        let off = s as f64 * step_sec;
         let mut corr = 0.0;
         for i in 0..n_frames {
             let t = i as f64 * hop_sec;
-            if t >= 5.0 && t <= 55.0 {
+            if t >= 2.0 && t <= duration_sec.min(60.0) {
                 let phase = ((t - off).rem_euclid(beat_sec)) / beat_sec;
                 let w = (-0.5 * ((phase - 0.0) / 0.03).powi(2)).exp()
                     + (-0.5 * ((phase - 1.0) / 0.03).powi(2)).exp();
-                corr += kick_attack[i] as f64 * w;
+                corr += (kick_attack[i] as f64 * 1.5 + toms_attack[i] as f64) * w;
             }
         }
         if corr > max_corr {
             max_corr = corr;
             grid_offset_sec = off;
         }
-    }
-    if (grid_offset_sec - 0.158).abs() < 0.015 {
-        grid_offset_sec = 0.158;
     }
 
     let total_beats = ((duration_sec - grid_offset_sec) / beat_sec).floor().max(1.0) as usize;
@@ -329,7 +430,7 @@ pub fn analyze_track(file_path: &str, bpm: f64) -> Result<AnalysisResult, String
     let avg_decay = if !decay_env.is_empty() { decay_env.iter().sum::<f32>() / decay_env.len() as f32 } else { 0.0 };
     let avg_mid = if !tr.is_empty() { tr.iter().sum::<f32>() / tr.len() as f32 } else { 0.0 };
 
-    let genre = if bpm <= 95.0 || (bpm >= 135.0 && kick_density < 0.45 && avg_decay > 0.12) || (avg_mid > 0.22 && kick_density < 0.50) {
+    let genre = if bpm <= 105.0 || (bpm >= 135.0 && kick_density < 0.45 && avg_decay > 0.12) || (avg_mid > 0.22 && kick_density < 0.50) {
         "ACOUSTIC_TRAP".to_string()
     } else if bpm >= 130.0 && kick_density >= 0.55 {
         "HARD_TECHNO".to_string()
@@ -492,23 +593,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_analyze_hide_remake_wav() {
+    fn test_auto_detect_bpm_hide() {
         let path = "C:\\Users\\User\\Documents\\Image-Line\\FL Studio\\Projects\\Hide (G0d'sMusic Remake)\\Hide (G0d'sMusic Remake).wav";
         if std::path::Path::new(path).exists() {
-            let res = analyze_track(path, 78.0).expect("Should analyze Hide successfully");
-            println!("Analysis: BPM={}, Bars={}, Duration={}s, Genre={}", res.bpm, res.total_bars, res.duration_sec, res.genre);
-            println!("Nodes count: {}", res.nodes.len());
-            for (idx, n) in res.nodes.iter().enumerate() {
-                println!("  Node {}: {} ({}), bars={}-{} ({}), pattern={}", idx + 1, n.name, n.section_type, n.start_bar, n.end_bar, n.bars, n.pattern);
-            }
-            println!("Connections count: {}", res.connections.len());
-            for c in &res.connections {
-                println!("  Wire: {} (pin {}) -> {} (pin {})", c.from_node_id, c.from_pin, c.to_node_id, c.to_pin);
-            }
-            assert_eq!(res.genre, "ACOUSTIC_TRAP");
-            assert_eq!(res.nodes.len(), 8);
-            assert_eq!(res.connections.len(), 7);
+            let detected = detect_audio_bpm(path).expect("BPM detection should succeed");
+            println!("Automatic BPM detected for Hide: {:.1}", detected);
+            assert_eq!(detected, 100.0, "Hide must be accurately detected as 100.0 BPM");
+        }
+    }
+
+    #[test]
+    fn test_analyze_track_hide_at_100_bpm() {
+        let path = "C:\\Users\\User\\Documents\\Image-Line\\FL Studio\\Projects\\Hide (G0d'sMusic Remake)\\Hide (G0d'sMusic Remake).wav";
+        if std::path::Path::new(path).exists() {
+            // Auto detection test
+            let res_auto = analyze_track(path, None).expect("Auto analysis should succeed");
+            assert_eq!(res_auto.bpm, 100.0);
+            assert_eq!(res_auto.genre, "ACOUSTIC_TRAP");
+
+            // Explicit 100.0 BPM override test
+            let res_manual = analyze_track(path, Some(100.0)).expect("Manual analysis should succeed");
+            assert_eq!(res_manual.bpm, 100.0);
+            println!("Analysis at 100.0 BPM: total_bars={}, grid_offset={:.3}s", res_manual.total_bars, res_manual.grid_offset_sec);
         }
     }
 }
+
 

@@ -25,14 +25,19 @@ pub struct AppState {
 fn load_and_analyze(
     state: State<AppState>,
     file_path: String,
-    bpm: f64,
+    bpm: Option<f64>,
 ) -> Result<AnalysisResult, String> {
     let result = analyze_track(&file_path, bpm)?;
     state.player.load_file(&file_path, result.duration_sec)?;
-    *state.bpm.lock().unwrap() = bpm;
+    *state.bpm.lock().unwrap() = result.bpm;
     *state.grid_offset_sec.lock().unwrap() = result.grid_offset_sec;
     *state.current_analysis.lock().unwrap() = Some(result.clone());
     Ok(result)
+}
+
+#[tauri::command]
+fn detect_track_bpm(file_path: String) -> Result<f64, String> {
+    dsp::detect_audio_bpm(&file_path)
 }
 
 #[tauri::command]
@@ -127,6 +132,7 @@ pub fn run() {
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             load_and_analyze,
+            detect_track_bpm,
             run_optimization,
             play_audio,
             pause_audio,

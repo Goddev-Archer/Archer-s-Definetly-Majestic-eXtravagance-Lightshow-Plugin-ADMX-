@@ -15,8 +15,8 @@ export class StudioState {
   );
   dbPath = $state("c:/dev/test-server/plugins/ADMX/admx.db");
   slotIndex = $state(1);
-  bpm = $state(78.0);
-  gridOffsetSec = $state(0.158);
+  bpm = $state(100.0);
+  gridOffsetSec = $state(0.036);
   analysis = $state<AnalysisResult | null>(null);
   nodes = $state<SongSection[]>([]);
   connections = $state<FlowConnection[]>([]);
@@ -184,20 +184,34 @@ export class StudioState {
   }
 
   // Audio & Analysis Actions
-  async loadAndAnalyze(path: string, bpmVal: number) {
+  async loadAndAnalyze(path: string, bpmVal?: number) {
     try {
       const res = await invoke<AnalysisResult>("load_and_analyze", {
         filePath: path,
-        bpm: bpmVal,
+        bpm: bpmVal ?? this.bpm,
       });
       this.analysis = res;
       this.nodes = res.nodes;
       this.connections = res.connections || [];
       this.gridOffsetSec = res.grid_offset_sec;
+      this.bpm = res.bpm;
       this.playback.duration_ms = Math.round(res.duration_sec * 1000);
       return res;
     } catch (e: any) {
       console.error("load_and_analyze failed:", e);
+      throw e;
+    }
+  }
+
+  async autoDetectBpm(): Promise<number> {
+    try {
+      const detected = await invoke<number>("detect_track_bpm", {
+        filePath: this.filePath,
+      });
+      this.bpm = detected;
+      return detected;
+    } catch (e: any) {
+      console.error("autoDetectBpm failed:", e);
       throw e;
     }
   }

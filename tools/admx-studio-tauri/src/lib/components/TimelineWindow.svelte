@@ -24,6 +24,55 @@
       : null
   );
 
+  // Tap-Tempo & BPM Helpers
+  let tapTimes: number[] = [];
+  let tapLabel = $state("TAP");
+
+  function handleTap() {
+    const now = performance.now();
+    if (tapTimes.length > 0 && now - tapTimes[tapTimes.length - 1] > 2500) {
+      tapTimes = [];
+    }
+    tapTimes.push(now);
+    if (tapTimes.length > 5) {
+      tapTimes.shift();
+    }
+    if (tapTimes.length >= 2) {
+      let totalDiff = 0;
+      for (let i = 1; i < tapTimes.length; i++) {
+        totalDiff += tapTimes[i] - tapTimes[i - 1];
+      }
+      const avgDiffMs = totalDiff / (tapTimes.length - 1);
+      const calculatedBpm = Math.round((60000 / avgDiffMs) * 10) / 10;
+      studio.bpm = Math.max(40, Math.min(240, calculatedBpm));
+      tapLabel = `${studio.bpm.toFixed(0)}`;
+    } else {
+      tapLabel = "TAP...";
+    }
+  }
+
+  function halveBpm() {
+    studio.bpm = Math.round((studio.bpm / 2) * 10) / 10;
+  }
+
+  function doubleBpm() {
+    studio.bpm = Math.round((studio.bpm * 2) * 10) / 10;
+  }
+
+  async function handleAutoDetectBpm() {
+    if (!studio.filePath) return;
+    isAnalyzing = true;
+    analysisError = null;
+    try {
+      const detected = await studio.autoDetectBpm();
+      await studio.loadAndAnalyze(studio.filePath, detected);
+    } catch (e: any) {
+      analysisError = e?.toString() || "Fehler bei automatischer BPM-Erkennung";
+    } finally {
+      isAnalyzing = false;
+    }
+  }
+
   async function handleAnalyze() {
     if (!studio.filePath) return;
     isAnalyzing = true;
@@ -199,7 +248,21 @@
         step="0.1"
         class="input-num"
         bind:value={studio.bpm}
+        title="Tempo manuell eingeben (z. B. 100.0)"
       />
+      <!-- Quick BPM Tools -->
+      <button class="t-mini-btn" onclick={handleAutoDetectBpm} title="BPM automatisch mit Multi-Kammfilter erkennen">
+        ⚡ Auto
+      </button>
+      <button class="t-mini-btn tap-btn" onclick={handleTap} title="Im Takt klicken zum Erfassen des Tempos">
+        {tapLabel}
+      </button>
+      <button class="t-mini-btn" onclick={halveBpm} title="Halbe BPM (½)">
+        ½
+      </button>
+      <button class="t-mini-btn" onclick={doubleBpm} title="Doppelte BPM (2×)">
+        2×
+      </button>
     </div>
 
     <div class="input-group num-group">
@@ -209,6 +272,7 @@
         step="0.001"
         class="input-num"
         bind:value={studio.gridOffsetSec}
+        title="Taktanfang / Downbeat-Offset in Sekunden"
       />
       <span class="unit">s</span>
     </div>
@@ -217,8 +281,9 @@
       class="btn-analyze {isAnalyzing ? 'loading' : ''}"
       onclick={handleAnalyze}
       disabled={isAnalyzing}
+      title="Track mit aktuellem Tempo analysieren und Flowboard-Phasen neu takten"
     >
-      {isAnalyzing ? "Analysiere DSP..." : "⚡ Analysieren (Rust DSP)"}
+      {isAnalyzing ? "Analysiere DSP..." : "⚡ Neu takten (Rust DSP)"}
     </button>
 
     {#if studio.analysis?.genre}
@@ -379,6 +444,35 @@
   .btn-analyze:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  .t-mini-btn {
+    background: #25292e;
+    border: 1px solid #363c42;
+    border-radius: 3px;
+    color: #e0e4e8;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .t-mini-btn:hover {
+    background: #31363b;
+    border-color: #3daee9;
+    color: #ffffff;
+  }
+
+  .tap-btn {
+    background: #2d261e;
+    border-color: #f59e0b;
+    color: #f59e0b;
+  }
+
+  .tap-btn:hover {
+    background: #f59e0b;
+    color: #000000;
   }
 
   .genre-badge {
