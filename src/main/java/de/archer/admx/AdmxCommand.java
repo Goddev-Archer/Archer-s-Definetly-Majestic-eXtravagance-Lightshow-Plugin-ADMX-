@@ -83,6 +83,7 @@ public final class AdmxCommand implements BasicCommand {
         if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
             player.sendMessage(Component.text("--- ADMX Stage Lighting & Console Befehle ---", NamedTextColor.GOLD));
             player.sendMessage(Component.text("/admx wand - Gibt dir den ADMX Fixture Placer & Console Wand", NamedTextColor.AQUA));
+            player.sendMessage(Component.text("/admx co2 - Gibt dir die Handheld Cryo-Bazooka (50-Bar CO2-Cannon)", NamedTextColor.AQUA));
             player.sendMessage(Component.text("/admx desktop [spawn|set] [uni|displayId] - Spawnt das Boiler Desktop-UI (Maus/Drag/Scroll)", NamedTextColor.GREEN));
             player.sendMessage(Component.text("/admx dmx [1-16] - Öffnet die 512-Kanal Pro DMX Workstation (Chest-UI)", NamedTextColor.GOLD));
             player.sendMessage(Component.text("/admx s2l - Öffnet das Hardware-Style Sound-to-Light Pult (Spektrogramm & Filter)", NamedTextColor.YELLOW));
@@ -170,6 +171,20 @@ public final class AdmxCommand implements BasicCommand {
             player.sendMessage(Component.text("✦ Du hast den ", NamedTextColor.GREEN)
                     .append(Component.text("ADMX Fixture Placer & Console Wand", NamedTextColor.GOLD))
                     .append(Component.text(" erhalten! Rechtsklick = Geräte/Gruppen-Menü, Linksklick = Steuerpult (Chest/3D-Holo)!", NamedTextColor.GREEN)));
+            return;
+        }
+
+        if (args[0].equalsIgnoreCase("co2") || args[0].equalsIgnoreCase("bazooka") || args[0].equalsIgnoreCase("cryo")) {
+            if (!player.hasPermission("admx.fx.co2") && !player.hasPermission("admx.admin")) {
+                player.sendMessage(Component.text("✘ Keine Berechtigung für die Cryo-Bazooka (admx.fx.co2 / admx.admin erforderlich).", NamedTextColor.RED));
+                return;
+            }
+            ItemStack bazooka = plugin.getCryoBazookaManager().createCryoBazooka();
+            player.getInventory().addItem(bazooka);
+            player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_NETHERITE, 1.0f, 1.2f);
+            player.sendMessage(Component.text("💨 Du hast die ", NamedTextColor.GREEN)
+                    .append(Component.text("ADMX Handheld Cryo-Bazooka", NamedTextColor.AQUA))
+                    .append(Component.text(" erhalten! (Rechtsklick: 50-Bar Blast | Sneak+Rechtsklick: Nozzle-Farbe)", NamedTextColor.GRAY)));
             return;
         }
 
@@ -703,7 +718,7 @@ public final class AdmxCommand implements BasicCommand {
             return (args.length <= 1) ? List.of("safe") : List.of();
         }
         if (args.length == 0 || args.length == 1) {
-            return List.of("wand", "desktop", "dmx", "ui", "s2l", "artnet", "group", "scene", "flow", "auto", "autoshow", "spawn", "safe", "purge", "clear", "help");
+            return List.of("wand", "co2", "bazooka", "desktop", "dmx", "ui", "s2l", "artnet", "group", "scene", "flow", "auto", "autoshow", "spawn", "safe", "purge", "clear", "help");
         }
         if (args.length == 2) {
             return switch (args[0].toLowerCase()) {

@@ -84,6 +84,7 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
     private de.archer.admx.ui.SoundToLightChestUi soundToLightChestUi;
     private de.archer.admx.ui.AutoShowStudioChestUi autoShowStudioChestUi;
     private de.archer.admx.artnet.ArtNetBridgeManager artNetBridgeManager;
+    private de.archer.admx.fx.CryoBazookaManager cryoBazookaManager;
 
     private final Map<String, FixtureGroup> fixtureGroups = new LinkedHashMap<>();
     private final Map<UUID, PlacedFixture> placedFixtures = new ConcurrentHashMap<>();
@@ -209,6 +210,8 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(this.flowboardGui, this);
         getServer().getPluginManager().registerEvents(this.soundToLightChestUi, this);
         getServer().getPluginManager().registerEvents(this.autoShowStudioChestUi, this);
+        this.cryoBazookaManager = new de.archer.admx.fx.CryoBazookaManager(this);
+        getServer().getPluginManager().registerEvents(this.cryoBazookaManager, this);
 
         registerCommand("admx", new AdmxCommand(this));
 
@@ -578,6 +581,10 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
 
     public HoloConsoleUi getHoloConsoleUi() {
         return holoConsoleUi;
+    }
+
+    public de.archer.admx.fx.CryoBazookaManager getCryoBazookaManager() {
+        return cryoBazookaManager;
     }
 
     public Map<String, FixtureGroup> getFixtureGroups() {

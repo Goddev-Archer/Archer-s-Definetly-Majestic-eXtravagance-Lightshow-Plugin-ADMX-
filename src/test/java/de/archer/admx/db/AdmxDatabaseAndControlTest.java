@@ -28,7 +28,7 @@ class AdmxDatabaseAndControlTest {
     void testSqliteWalDatabaseGroupsAndSceneCuesIntegrity() {
         try (AdmxDatabase db = new AdmxDatabase(tempDir)) {
             Map<String, FixtureGroup> groups = db.loadOrSeedGroups();
-            assertEquals(6, groups.size(), "Must seed 6 default stage groups");
+            assertEquals(FixtureGroup.createDefaultGroups().size(), groups.size(), "Must seed all default stage groups");
 
             FixtureGroup front = groups.get("front_truss");
             assertNotNull(front);

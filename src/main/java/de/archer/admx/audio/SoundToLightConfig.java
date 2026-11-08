@@ -44,13 +44,17 @@ public final class SoundToLightConfig {
     }
 
     public static SoundToLightConfig defaultForGroup(String groupId) {
-        String lower = groupId.toLowerCase();
+        String lower = groupId.toLowerCase(java.util.Locale.ROOT);
         if (lower.contains("strobe") || lower.contains("blinder")) {
             return new SoundToLightConfig(true, 35, 120, 0.42f, SoundAction.BLACKOUT, SoundAction.STROBE_10HZ, 100);
         } else if (lower.contains("laser")) {
             return new SoundToLightConfig(true, 120, 900, 0.40f, SoundAction.DIMMED_SWEEP, SoundAction.LASER_FAN_BURST, 150);
-        } else if (lower.contains("flame")) {
+        } else if (lower.contains("flame") || lower.contains("fog") || lower.contains("pyro")) {
             return new SoundToLightConfig(true, 35, 90, 0.55f, SoundAction.BLACKOUT, SoundAction.BLINDER_HIT, 80);
+        } else if (lower.contains("floor") || lower.contains("ground")) {
+            return new SoundToLightConfig(true, 30, 110, 0.45f, SoundAction.DIMMED_SWEEP, SoundAction.COLOR_CYCLE, 120);
+        } else if (lower.contains("roof") || lower.contains("matrix") || lower.contains("warmer")) {
+            return new SoundToLightConfig(true, 250, 1800, 0.38f, SoundAction.DIMMED_SWEEP, SoundAction.COLOR_CYCLE, 160);
         } else {
             return new SoundToLightConfig(true, 40, 250, 0.40f, SoundAction.DIMMED_SWEEP, SoundAction.COLOR_CYCLE, 180);
         }

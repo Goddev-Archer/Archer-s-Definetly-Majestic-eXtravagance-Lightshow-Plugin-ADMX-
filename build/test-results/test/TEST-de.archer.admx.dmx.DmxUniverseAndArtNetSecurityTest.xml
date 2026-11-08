@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-08T03:54:02.076Z" hostname="DESKTOP-0001" time="0.074">
+<testsuite name="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-08T15:23:53.424Z" hostname="DESKTOP-0001" time="0.084">
   <properties/>
-  <testcase name="testPhotosensitivityCapSec15OnRawDmxStrobe()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.003"/>
-  <testcase name="testSymmetricPanTiltEncodingAndDecodingBug10()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.001"/>
-  <testcase name="testGeneric3ChRgbInQlcPlusDrivesFixtureWithoutOverrideLoss()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.001"/>
-  <testcase name="testArtPollReplyPacketFormatSec12()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.001"/>
-  <testcase name="testConsoleModelsAndDatabaseCrcSec08()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.002"/>
+  <testcase name="testPhotosensitivityCapSec15OnRawDmxStrobe()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.004"/>
+  <testcase name="testSymmetricPanTiltEncodingAndDecodingBug10()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.002"/>
+  <testcase name="testGeneric3ChRgbInQlcPlusDrivesFixtureWithoutOverrideLoss()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.002"/>
+  <testcase name="testArtPollReplyPacketFormatSec12()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.002"/>
+  <testcase name="testConsoleModelsAndDatabaseCrcSec08()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.003"/>
   <testcase name="testBoilerDesktopSourceRendersHeadlessAndChecksPermissions()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.004"/>
-  <testcase name="testHtpLtpConsoleAndArtNetMerging()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.002"/>
+  <testcase name="testHtpLtpConsoleAndArtNetMerging()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.001"/>
   <testcase name="testMalformedArtDmxPacketRejectionSec14()" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.001"/>
-  <testcase name="testMultiPassAutoShowLearningAndIdiotProofPllSync(File)" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.051"/>
+  <testcase name="testMultiPassAutoShowLearningAndIdiotProofPllSync(File)" classname="de.archer.admx.dmx.DmxUniverseAndArtNetSecurityTest" time="0.06"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

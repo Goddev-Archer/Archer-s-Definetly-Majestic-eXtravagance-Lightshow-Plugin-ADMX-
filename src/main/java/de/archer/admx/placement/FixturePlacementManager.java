@@ -54,6 +54,7 @@ public final class FixturePlacementManager implements Listener {
 
     private final AdmxPlugin plugin;
     private final NamespacedKey wandKey;
+    private final NamespacedKey categoryKey;
 
     private final Map<UUID, PendingPlacement> pendingPlacements = new ConcurrentHashMap<>();
     private final Map<UUID, Boolean> playerUseCmdPref = new ConcurrentHashMap<>();
@@ -74,9 +75,19 @@ public final class FixturePlacementManager implements Listener {
         }
     }
 
+    private static final class CategorySelectionGuiHolder implements InventoryHolder {
+        private Inventory inventory;
+
+        @Override
+        public @NotNull Inventory getInventory() {
+            return inventory;
+        }
+    }
+
     public FixturePlacementManager(AdmxPlugin plugin) {
         this.plugin = plugin;
         this.wandKey = new NamespacedKey(plugin, "fixture_placer");
+        this.categoryKey = new NamespacedKey(plugin, "category_group_id");
     }
 
     public boolean checkClickCooldown(Player player) {
@@ -304,8 +315,10 @@ public final class FixturePlacementManager implements Listener {
 
         String mountInfo = (pending != null && pending.ceilingMounted()) ? "Deckenmontage (Hängend)" : "Boden-/Stativmontage";
         String yawInfo = (pending != null) ? String.format(Locale.ROOT, "%.0f°", pending.mountYaw()) : "0°";
-        Component groupInfoLine = Component.text("Ziel-Gruppe: ", NamedTextColor.GRAY)
+        Component groupInfoLine = Component.text("Ziel-Kategorie: ", NamedTextColor.GRAY)
                 .append(Component.text(groupName + " (#" + (groupMembers + 1) + ")", NamedTextColor.AQUA));
+        Component purposeLine = Component.text("Zweck: ", NamedTextColor.DARK_GRAY)
+                .append(Component.text(targetGroup != null ? targetGroup.usagePurpose() : "Bühnenbeleuchtung", NamedTextColor.WHITE));
         Component universeInfoLine = Component.text("Ziel-Universum: ", NamedTextColor.GRAY)
                 .append(Component.text("Universum " + (targetUniverse + 1) + " (Art-Net 0:0:" + targetUniverse + ")", NamedTextColor.GREEN));
 
@@ -317,6 +330,7 @@ public final class FixturePlacementManager implements Listener {
                         Component.text("Modell: ", NamedTextColor.GRAY).append(Component.text("3-Part Moving Head (Spot-Optik)", NamedTextColor.WHITE)),
                         Component.text("Optik: ", NamedTextColor.GRAY).append(Component.text("Volumetrischer 3D-Lichtkegel (Spot Cone)", NamedTextColor.WHITE)),
                         groupInfoLine,
+                        purposeLine,
                         Component.text("Montage: " + mountInfo + " (Yaw: " + yawInfo + ")", NamedTextColor.DARK_GRAY),
                         Component.text("» Klicken zum Platzieren", NamedTextColor.GREEN)
                 )
@@ -329,6 +343,7 @@ public final class FixturePlacementManager implements Listener {
                         Component.text("Modell: ", NamedTextColor.GRAY).append(Component.text("3-Part Moving Head (Konvexe Beam-Linse)", NamedTextColor.WHITE)),
                         Component.text("Optik: ", NamedTextColor.GRAY).append(Component.text("Enger, messerscharfer Nadelstrahl (Beam)", NamedTextColor.WHITE)),
                         groupInfoLine,
+                        purposeLine,
                         Component.text("Montage: " + mountInfo + " (Yaw: " + yawInfo + ")", NamedTextColor.DARK_GRAY),
                         Component.text("» Klicken zum Platzieren", NamedTextColor.GREEN)
                 )
@@ -341,6 +356,7 @@ public final class FixturePlacementManager implements Listener {
                         Component.text("Modell: ", NamedTextColor.GRAY).append(Component.text("3-Part Moving Head (Waben-LED-Cluster)", NamedTextColor.WHITE)),
                         Component.text("Optik: ", NamedTextColor.GRAY).append(Component.text("Breiter, weicher Farbkegel (Washlight)", NamedTextColor.WHITE)),
                         groupInfoLine,
+                        purposeLine,
                         Component.text("Montage: " + mountInfo + " (Yaw: " + yawInfo + ")", NamedTextColor.DARK_GRAY),
                         Component.text("» Klicken zum Platzieren", NamedTextColor.GREEN)
                 )
@@ -353,6 +369,7 @@ public final class FixturePlacementManager implements Listener {
                         Component.text("Modell: ", NamedTextColor.GRAY).append(Component.text("Statischer Club-Laserprojektor", NamedTextColor.WHITE)),
                         Component.text("Optik: ", NamedTextColor.GRAY).append(Component.text("Breiter 2D-Laserfächer (Audience Scan)", NamedTextColor.WHITE)),
                         groupInfoLine,
+                        purposeLine,
                         Component.text("Montage: " + mountInfo + " (Yaw: " + yawInfo + ")", NamedTextColor.DARK_GRAY),
                         Component.text("» Klicken zum Platzieren", NamedTextColor.GREEN)
                 )
@@ -365,6 +382,7 @@ public final class FixturePlacementManager implements Listener {
                         Component.text("Modell: ", NamedTextColor.GRAY).append(Component.text("Statischer Club-Laserprojektor", NamedTextColor.WHITE)),
                         Component.text("Optik: ", NamedTextColor.GRAY).append(Component.text("Gebündelter 3D-Nadelstrahl (Single Beam)", NamedTextColor.WHITE)),
                         groupInfoLine,
+                        purposeLine,
                         Component.text("Montage: " + mountInfo + " (Yaw: " + yawInfo + ")", NamedTextColor.DARK_GRAY),
                         Component.text("» Klicken zum Platzieren", NamedTextColor.GREEN)
                 )
@@ -377,6 +395,7 @@ public final class FixturePlacementManager implements Listener {
                         Component.text("Modell: ", NamedTextColor.GRAY).append(Component.text("3-Part Moving Laser Head (Base/Yoke/Head)", NamedTextColor.WHITE)),
                         Component.text("Optik: ", NamedTextColor.GRAY).append(Component.text("Rotierender 360°-Laserfächer", NamedTextColor.WHITE)),
                         groupInfoLine,
+                        purposeLine,
                         Component.text("Montage: " + mountInfo + " (Yaw: " + yawInfo + ")", NamedTextColor.DARK_GRAY),
                         Component.text("» Klicken zum Platzieren", NamedTextColor.GREEN)
                 )
@@ -389,6 +408,7 @@ public final class FixturePlacementManager implements Listener {
                         Component.text("Modell: ", NamedTextColor.GRAY).append(Component.text("2-Fach PAR36 Warmweiß-Fluter", NamedTextColor.WHITE)),
                         Component.text("Optik: ", NamedTextColor.GRAY).append(Component.text("Volumetrischer Warmweiß-Fluter (Breit)", NamedTextColor.WHITE)),
                         groupInfoLine,
+                        purposeLine,
                         Component.text("Montage: " + mountInfo + " (Yaw: " + yawInfo + ")", NamedTextColor.DARK_GRAY),
                         Component.text("» Klicken zum Platzieren", NamedTextColor.GREEN)
                 )
@@ -401,6 +421,7 @@ public final class FixturePlacementManager implements Listener {
                         Component.text("Modell: ", NamedTextColor.GRAY).append(Component.text("Mehrsegment-LED-Leiste (1m)", NamedTextColor.WHITE)),
                         Component.text("Optik: ", NamedTextColor.GRAY).append(Component.text("Ultra-helle Strobe-Flashes", NamedTextColor.WHITE)),
                         groupInfoLine,
+                        purposeLine,
                         Component.text("Montage: " + mountInfo + " (Yaw: " + yawInfo + ")", NamedTextColor.DARK_GRAY),
                         Component.text("» Klicken zum Platzieren", NamedTextColor.GREEN)
                 )
@@ -413,6 +434,7 @@ public final class FixturePlacementManager implements Listener {
                         Component.text("Modell: ", NamedTextColor.GRAY).append(Component.text("DMX Nebelmaschine mit Tank & Heizblock", NamedTextColor.WHITE)),
                         Component.text("Physik: ", NamedTextColor.GRAY).append(Component.text("3D-Raum-Flood-Fill (max. 30 Blöcke)", NamedTextColor.WHITE)),
                         groupInfoLine,
+                        purposeLine,
                         Component.text("Montage: " + mountInfo + " (Yaw: " + yawInfo + ")", NamedTextColor.DARK_GRAY),
                         Component.text("» Klicken zum Platzieren", NamedTextColor.GREEN)
                 )
@@ -425,6 +447,7 @@ public final class FixturePlacementManager implements Listener {
                         Component.text("Modell: ", NamedTextColor.GRAY).append(Component.text("Cryo-/Ultraschall-Kaltnebelmaschine", NamedTextColor.WHITE)),
                         Component.text("Physik: ", NamedTextColor.GRAY).append(Component.text("Schwerkraft-Boden-Flood-Fill (max. 30 Blöcke)", NamedTextColor.WHITE)),
                         groupInfoLine,
+                        purposeLine,
                         Component.text("Montage: " + mountInfo + " (Yaw: " + yawInfo + ")", NamedTextColor.DARK_GRAY),
                         Component.text("» Klicken zum Platzieren", NamedTextColor.GREEN)
                 )
@@ -437,6 +460,7 @@ public final class FixturePlacementManager implements Listener {
                         Component.text("Modell: ", NamedTextColor.GRAY).append(Component.text("Bühnen-Flammenprojektor mit Schutzkäfig", NamedTextColor.WHITE)),
                         Component.text("Optik: ", NamedTextColor.GRAY).append(Component.text("Vertikale Pyro-Flammenstöße + Echtzeit-Licht", NamedTextColor.WHITE)),
                         groupInfoLine,
+                        purposeLine,
                         Component.text("Montage: " + mountInfo + " (Yaw: " + yawInfo + ")", NamedTextColor.DARK_GRAY),
                         Component.text("» Klicken zum Platzieren", NamedTextColor.GREEN)
                 )
@@ -472,16 +496,39 @@ public final class FixturePlacementManager implements Listener {
                 )
         ));
 
-        // --- Reihe 5 (Slots 36..44): Gruppen-, UI- & Lösch-Werkzeuge ---
+        // --- Reihe 5 (Slots 35..44): Kategorien-, UI- & Lösch-Werkzeuge ---
+        inv.setItem(35, createGuiItem(
+                Material.SPECTRAL_ARROW,
+                Component.text("◀ Vorherige Kategorie", NamedTextColor.YELLOW, TextDecoration.BOLD),
+                List.of(
+                        Component.text("Schaltet schnell zur vorherigen", NamedTextColor.GRAY),
+                        Component.text("Bühnenkategorie zurück.", NamedTextColor.GRAY),
+                        Component.empty(),
+                        Component.text("» Klicken zum Wechseln", NamedTextColor.YELLOW)
+                )
+        ));
+
         inv.setItem(36, createGuiItem(
                 targetGroup != null ? targetGroup.iconMaterial() : Material.CYAN_STAINED_GLASS,
-                Component.text("Ziel-Gruppe: " + groupName, NamedTextColor.AQUA, TextDecoration.BOLD),
+                Component.text("📂 Ziel-Kategorie: " + groupName, NamedTextColor.AQUA, TextDecoration.BOLD),
                 List.of(
-                        Component.text("Weist das nächste gespawnte Gerät vorab", NamedTextColor.GRAY),
-                        Component.text("dieser SQLite-Gerätegruppe zu!", NamedTextColor.GRAY),
-                        Component.text("Aktuell in Gruppe: " + groupMembers + " Geräte", NamedTextColor.WHITE),
+                        Component.text("Zone: ", NamedTextColor.GRAY).append(Component.text(targetGroup != null ? targetGroup.stageZone().displayName() : "Main Grid", targetGroup != null ? targetGroup.stageZone().color() : NamedTextColor.BLUE)),
+                        Component.text("Verwendungszweck: ", NamedTextColor.GRAY).append(Component.text(targetGroup != null ? targetGroup.usagePurpose() : "Bühnenbeleuchtung", NamedTextColor.WHITE)),
+                        Component.text("Aktuell in Gruppe: " + groupMembers + " Geräte", NamedTextColor.GREEN),
                         Component.empty(),
-                        Component.text("» Links-/Rechtsklick zum Wechseln der Gruppe", NamedTextColor.YELLOW)
+                        Component.text("» Klick: Großes Kategorien- & Zonen-Menü öffnen", NamedTextColor.GOLD, TextDecoration.BOLD),
+                        Component.text("» Rechtsklick: Schnelles Weiterschalten", NamedTextColor.YELLOW)
+                )
+        ));
+
+        inv.setItem(37, createGuiItem(
+                Material.ARROW,
+                Component.text("▶ Nächste Kategorie", NamedTextColor.YELLOW, TextDecoration.BOLD),
+                List.of(
+                        Component.text("Schaltet schnell zur nächsten", NamedTextColor.GRAY),
+                        Component.text("Bühnenkategorie vor.", NamedTextColor.GRAY),
+                        Component.empty(),
+                        Component.text("» Klicken zum Wechseln", NamedTextColor.YELLOW)
                 )
         ));
 
@@ -552,16 +599,177 @@ public final class FixturePlacementManager implements Listener {
         player.openInventory(inv);
     }
 
+    public void openCategorySelectionGui(Player player) {
+        CategorySelectionGuiHolder holder = new CategorySelectionGuiHolder();
+        Inventory inv = Bukkit.createInventory(
+                holder,
+                54,
+                Component.text("ADMX Bühnen-Kategorien & Zonen", NamedTextColor.DARK_GRAY, TextDecoration.BOLD)
+        );
+        holder.inventory = inv;
+
+        ItemStack bg = createGuiItem(Material.BLACK_STAINED_GLASS_PANE, Component.text(" "), List.of());
+        for (int i = 0; i < 54; i++) {
+            inv.setItem(i, bg);
+        }
+
+        String selectedId = getSelectedGroupId(player);
+        Map<String, FixtureGroup> groups = plugin.getFixtureGroups();
+
+        // 1. Obere Traversen (Upper Rigging & Roof Grid) - Reihe 1
+        inv.setItem(0, createGuiItem(
+                Material.CYAN_BANNER,
+                Component.text("🏗 Obere Traversen (Upper Rigging)", NamedTextColor.AQUA, TextDecoration.BOLD),
+                List.of(
+                        Component.text("Hängepunkte in maximaler Höhe für", NamedTextColor.GRAY),
+                        Component.text("Audience-Beams, Gobos & Deckenraster.", NamedTextColor.GRAY)
+                )
+        ));
+        addCategoryItemToGrid(inv, 2, groups.get("upper_front_truss"), selectedId);
+        addCategoryItemToGrid(inv, 3, groups.get("upper_mid_truss"), selectedId);
+        addCategoryItemToGrid(inv, 4, groups.get("upper_back_truss"), selectedId);
+        addCategoryItemToGrid(inv, 5, groups.get("upper_roof_grid"), selectedId);
+        addCategoryItemToGrid(inv, 6, groups.get("truss_warmers"), selectedId);
+
+        // 2. Hauptbühnen-Traversen (Main Grid) - Reihe 2
+        inv.setItem(9, createGuiItem(
+                Material.BLUE_BANNER,
+                Component.text("🎪 Hauptbühnen-Traversen (Main Grid)", NamedTextColor.BLUE, TextDecoration.BOLD),
+                List.of(
+                        Component.text("Haupt-Trusslinien über der Bühne für", NamedTextColor.GRAY),
+                        Component.text("Frontlicht, Tiefenwirkung & Gegenlicht.", NamedTextColor.GRAY)
+                )
+        ));
+        addCategoryItemToGrid(inv, 11, groups.get("front_truss"), selectedId);
+        addCategoryItemToGrid(inv, 12, groups.get("mid_truss"), selectedId);
+        addCategoryItemToGrid(inv, 13, groups.get("back_truss"), selectedId);
+        addCategoryItemToGrid(inv, 14, groups.get("audience_blinders"), selectedId);
+
+        // 3. Seitentürme & Kanzel (Side Towers & Center) - Reihe 3
+        inv.setItem(18, createGuiItem(
+                Material.LIME_BANNER,
+                Component.text("🗼 Seitentürme & Kanzel (Side Towers)", NamedTextColor.GREEN, TextDecoration.BOLD),
+                List.of(
+                        Component.text("Vertikaltraversen (Totems), Gassenlicht", NamedTextColor.GRAY),
+                        Component.text("sowie zentrierte DJ-Booth Effekte.", NamedTextColor.GRAY)
+                )
+        ));
+        addCategoryItemToGrid(inv, 20, groups.get("stage_left"), selectedId);
+        addCategoryItemToGrid(inv, 21, groups.get("stage_right"), selectedId);
+        addCategoryItemToGrid(inv, 22, groups.get("dj_booth_center"), selectedId);
+
+        // 4. Boden-Set & Rampe (Ground Package) - Reihe 4
+        inv.setItem(27, createGuiItem(
+                Material.ORANGE_BANNER,
+                Component.text("📐 Boden-Set & Rampe (Ground Package)", NamedTextColor.GOLD, TextDecoration.BOLD),
+                List.of(
+                        Component.text("Boden-Moving-Heads für steile Uplights", NamedTextColor.GRAY),
+                        Component.text("sowie Sunstrips & Rampenblinder an Kanten.", NamedTextColor.GRAY)
+                )
+        ));
+        addCategoryItemToGrid(inv, 29, groups.get("floor_beams"), selectedId);
+        addCategoryItemToGrid(inv, 30, groups.get("floor_blinders"), selectedId);
+
+        // 5. Spezial-Effekte & Show-Laser (Special FX) - Reihe 5
+        inv.setItem(36, createGuiItem(
+                Material.MAGENTA_BANNER,
+                Component.text("💥 Spezial-Effekte & Show-Laser", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD),
+                List.of(
+                        Component.text("Audience-Scanning Laser, Hazer-Dunst,", NamedTextColor.GRAY),
+                        Component.text("Bodennebel und vertikale Pyro-Flammenwerfer.", NamedTextColor.GRAY)
+                )
+        ));
+        addCategoryItemToGrid(inv, 38, groups.get("laser_rig"), selectedId);
+        addCategoryItemToGrid(inv, 39, groups.get("fx_fog_pyro"), selectedId);
+
+        // Benutzerdefinierte Gruppen in freie Slots
+        int customSlot = 41;
+        for (FixtureGroup g : groups.values()) {
+            String gid = g.groupId();
+            if (isDefaultStandardGroup(gid)) continue;
+            if (customSlot <= 44) {
+                addCategoryItemToGrid(inv, customSlot++, g, selectedId);
+            }
+        }
+
+        // Reihe 6: Navigation & Info
+        inv.setItem(45, createGuiItem(
+                Material.ARROW,
+                Component.text("« Zurück zum Platzierungs-Menü", NamedTextColor.YELLOW, TextDecoration.BOLD),
+                List.of(Component.text("Kehrt zur Geräte- und Pult-Auswahl zurück.", NamedTextColor.GRAY))
+        ));
+
+        inv.setItem(49, createGuiItem(
+                Material.BEACON,
+                Component.text("✦ 16 Praxisnahe Bühnen-Kategorien ✦", NamedTextColor.GOLD, TextDecoration.BOLD),
+                List.of(
+                        Component.text("Wähle eine Kategorie an, um neue Geräte", NamedTextColor.GRAY),
+                        Component.text("automatisch mit passenden Tilt-/Pan-Winkeln,", NamedTextColor.GRAY),
+                        Component.text("Mustern und Sound-to-Light zuzuordnen!", NamedTextColor.GRAY)
+                )
+        ));
+
+        inv.setItem(53, createGuiItem(
+                Material.ARROW,
+                Component.text("« Zurück zum Platzierungs-Menü", NamedTextColor.YELLOW, TextDecoration.BOLD),
+                List.of(Component.text("Kehrt zur Geräte- und Pult-Auswahl zurück.", NamedTextColor.GRAY))
+        ));
+
+        player.openInventory(inv);
+    }
+
+    private boolean isDefaultStandardGroup(String gid) {
+        return gid.equals("upper_front_truss") || gid.equals("upper_mid_truss") || gid.equals("upper_back_truss")
+                || gid.equals("upper_roof_grid") || gid.equals("truss_warmers") || gid.equals("front_truss")
+                || gid.equals("mid_truss") || gid.equals("back_truss") || gid.equals("audience_blinders")
+                || gid.equals("stage_left") || gid.equals("stage_right") || gid.equals("dj_booth_center")
+                || gid.equals("floor_beams") || gid.equals("floor_blinders") || gid.equals("laser_rig")
+                || gid.equals("fx_fog_pyro");
+    }
+
+    private void addCategoryItemToGrid(Inventory inv, int slot, FixtureGroup g, String selectedId) {
+        if (g == null) return;
+        boolean isSelected = g.groupId().equals(selectedId);
+        int count = plugin.countFixturesInGroup(g.groupId());
+
+        ItemStack item = new ItemStack(isSelected ? Material.BEACON : g.iconMaterial());
+        var meta = item.getItemMeta();
+        if (meta != null) {
+            meta.displayName(Component.text((isSelected ? "✔ " : "✦ ") + g.displayName(),
+                    isSelected ? NamedTextColor.AQUA : NamedTextColor.WHITE, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false));
+            meta.lore(List.of(
+                    Component.text("Bühnen-Zone: ", NamedTextColor.GRAY).append(Component.text(g.stageZone().displayName(), g.stageZone().color())).decoration(TextDecoration.ITALIC, false),
+                    Component.text("Verwendungszweck: ", NamedTextColor.GRAY).append(Component.text(g.usagePurpose(), NamedTextColor.WHITE)).decoration(TextDecoration.ITALIC, false),
+                    Component.text("Geräte in Kategorie: ", NamedTextColor.GRAY).append(Component.text(count + " adressiert", NamedTextColor.GREEN)).decoration(TextDecoration.ITALIC, false),
+                    Component.text("Standard-Tilt: " + (int) g.tiltDegrees() + "° | Pan: " + (int) g.panDegrees() + "°", NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false),
+                    Component.text("Standard-Muster: " + g.movementPattern().name(), NamedTextColor.DARK_GRAY).decoration(TextDecoration.ITALIC, false),
+                    Component.empty(),
+                    isSelected
+                            ? Component.text("▶ Aktuell ausgewählt", NamedTextColor.GREEN, TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false)
+                            : Component.text("» Klicken zum Auswählen & Zurückkehren", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false)
+            ));
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            meta.getPersistentDataContainer().set(categoryKey, PersistentDataType.STRING, g.groupId());
+            item.setItemMeta(meta);
+        }
+        if (isSelected) {
+            item.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.UNBREAKING, 1);
+        }
+        inv.setItem(slot, item);
+    }
+
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
-        if (event.getInventory().getHolder() instanceof PlacementGuiHolder) {
+        if (event.getInventory().getHolder() instanceof PlacementGuiHolder
+                || event.getInventory().getHolder() instanceof CategorySelectionGuiHolder) {
             event.setCancelled(true);
         }
     }
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!(event.getInventory().getHolder() instanceof PlacementGuiHolder)) return;
+        InventoryHolder holder = event.getInventory().getHolder();
+        if (!(holder instanceof PlacementGuiHolder || holder instanceof CategorySelectionGuiHolder)) return;
         event.setCancelled(true);
 
         if (!(event.getWhoClicked() instanceof Player player)) return;
@@ -574,6 +782,31 @@ public final class FixturePlacementManager implements Listener {
         int slot = event.getRawSlot();
         if (slot < 0 || slot >= 54) return;
 
+        if (holder instanceof CategorySelectionGuiHolder) {
+            if (slot == 45 || slot == 53) {
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.2f);
+                openSelectionGui(player);
+                return;
+            }
+
+            ItemStack clicked = event.getCurrentItem();
+            if (clicked != null && clicked.hasItemMeta()) {
+                String gid = clicked.getItemMeta().getPersistentDataContainer().get(categoryKey, PersistentDataType.STRING);
+                if (gid != null) {
+                    FixtureGroup target = plugin.getFixtureGroup(gid);
+                    if (target != null) {
+                        setSelectedGroupId(player, target.groupId());
+                        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.4f);
+                        player.sendMessage(Component.text("✔ Ziel-Kategorie gewechselt auf: ", NamedTextColor.GREEN)
+                                .append(Component.text(target.displayName(), NamedTextColor.AQUA))
+                                .append(Component.text(" • " + target.usagePurpose(), NamedTextColor.GRAY)));
+                        openSelectionGui(player);
+                    }
+                }
+            }
+            return;
+        }
+
         UUID playerId = player.getUniqueId();
         boolean useCmd = playerUseCmdPref.getOrDefault(playerId, true);
 
@@ -584,8 +817,27 @@ public final class FixturePlacementManager implements Listener {
             return;
         }
 
+        if (slot == 35) {
+            cycleSelectedGroup(player, true);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.3f);
+            openSelectionGui(player);
+            return;
+        }
+
         if (slot == 36) {
-            cycleSelectedGroup(player, event.isRightClick());
+            if (event.isRightClick()) {
+                cycleSelectedGroup(player, false);
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.3f);
+                openSelectionGui(player);
+            } else {
+                openCategorySelectionGui(player);
+                player.playSound(player.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.7f, 1.3f);
+            }
+            return;
+        }
+
+        if (slot == 37) {
+            cycleSelectedGroup(player, false);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.3f);
             openSelectionGui(player);
             return;

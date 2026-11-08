@@ -54,14 +54,24 @@ public final class SoundToLightChestUi implements Listener {
 
     public static final class SoundToLightHolder implements InventoryHolder {
         private final String activeGroupId;
+        private final int pageOffset;
         private Inventory inventory;
 
         public SoundToLightHolder(String activeGroupId) {
+            this(activeGroupId, 0);
+        }
+
+        public SoundToLightHolder(String activeGroupId, int pageOffset) {
             this.activeGroupId = activeGroupId;
+            this.pageOffset = pageOffset;
         }
 
         public String activeGroupId() {
             return activeGroupId;
+        }
+
+        public int pageOffset() {
+            return pageOffset;
         }
 
         @Override
@@ -106,6 +116,10 @@ public final class SoundToLightChestUi implements Listener {
     }
 
     public void openUi(Player player, String targetGroupId) {
+        openUi(player, targetGroupId, 0);
+    }
+
+    public void openUi(Player player, String targetGroupId, int pageOffset) {
         if (!player.hasPermission("admx.control") && !player.hasPermission("admx.admin")) {
             player.sendMessage(Component.text("Keine Berechtigung (admx.control erforderlich).", NamedTextColor.RED));
             return;
@@ -121,7 +135,12 @@ public final class SoundToLightChestUi implements Listener {
             return;
         }
 
-        SoundToLightHolder holder = new SoundToLightHolder(active.groupId());
+        int clampedOffset = Math.max(0, pageOffset);
+        if (clampedOffset >= allGroups.size()) {
+            clampedOffset = 0;
+        }
+
+        SoundToLightHolder holder = new SoundToLightHolder(active.groupId(), clampedOffset);
         Inventory inv = Bukkit.createInventory(
                 holder,
                 54,
@@ -129,11 +148,43 @@ public final class SoundToLightChestUi implements Listener {
         );
         holder.inventory = inv;
 
-        buildInventory(inv, active);
+        buildInventory(inv, active, clampedOffset);
         player.openInventory(inv);
     }
 
+    private void addTabItem(Inventory inv, int slot, FixtureGroup g, FixtureGroup active) {
+        boolean isSelected = g.groupId().equals(active.groupId());
+        int count = plugin.countFixturesInGroup(g.groupId());
+
+        ItemStack tabItem = item(
+                g.iconMaterial(),
+                Component.text(g.displayName(), isSelected ? NamedTextColor.YELLOW : NamedTextColor.WHITE, TextDecoration.BOLD),
+                List.of(
+                        Component.text("Zone: ", NamedTextColor.GRAY).append(Component.text(g.stageZone().displayName(), g.stageZone().color())),
+                        Component.text("Zweck: ", NamedTextColor.GRAY).append(Component.text(g.usagePurpose(), NamedTextColor.WHITE)),
+                        Component.text(count + " Geräte zugewiesen", NamedTextColor.GREEN),
+                        Component.text("Modus: " + g.controlMode().displayName(), isSelected ? NamedTextColor.AQUA : NamedTextColor.DARK_GRAY),
+                        Component.empty(),
+                        isSelected
+                                ? Component.text("▶ Aktuell ausgewählt", NamedTextColor.GREEN, TextDecoration.BOLD)
+                                : Component.text("Klicken zum Auswählen", NamedTextColor.YELLOW)
+                )
+        );
+        if (isSelected) {
+            tabItem.addUnsafeEnchantment(Enchantment.UNBREAKING, 1);
+        }
+        inv.setItem(slot, tabItem);
+    }
+
     private void buildInventory(Inventory inv, FixtureGroup active) {
+        if (inv.getHolder() instanceof SoundToLightHolder holder) {
+            buildInventory(inv, active, holder.pageOffset());
+        } else {
+            buildInventory(inv, active, 0);
+        }
+    }
+
+    private void buildInventory(Inventory inv, FixtureGroup active, int pageOffset) {
         ItemStack bg = item(Material.BLACK_STAINED_GLASS_PANE, Component.text(" "), List.of());
         for (int i = 0; i < 54; i++) {
             inv.setItem(i, bg);
@@ -146,29 +197,26 @@ public final class SoundToLightChestUi implements Listener {
             active.setSoundConfig(cfg);
         }
 
-        // --- Reihe 1 (Slots 0..5): Gruppenauswahl ---
-        int maxTabs = Math.min(6, allGroups.size());
-        for (int i = 0; i < maxTabs; i++) {
-            FixtureGroup g = allGroups.get(i);
-            boolean isSelected = g.groupId().equals(active.groupId());
-            int count = plugin.countFixturesInGroup(g.groupId());
-
-            ItemStack tabItem = item(
-                    g.iconMaterial(),
-                    Component.text(g.displayName(), isSelected ? NamedTextColor.YELLOW : NamedTextColor.WHITE, TextDecoration.BOLD),
-                    List.of(
-                            Component.text(count + " Geräte zugewiesen", NamedTextColor.GRAY),
-                            Component.text("Modus: " + g.controlMode().displayName(), isSelected ? NamedTextColor.AQUA : NamedTextColor.DARK_GRAY),
-                            Component.empty(),
-                            isSelected
-                                    ? Component.text("▶ Aktuell ausgewählt", NamedTextColor.GREEN, TextDecoration.BOLD)
-                                    : Component.text("Klicken zum Auswählen", NamedTextColor.YELLOW)
-                    )
-            );
-            if (isSelected) {
-                tabItem.addUnsafeEnchantment(Enchantment.UNBREAKING, 1);
+        // --- Reihe 1 (Slots 0..5): Gruppenauswahl inkl. Paging für alle Kategorien ---
+        if (allGroups.size() <= 6) {
+            for (int i = 0; i < allGroups.size(); i++) {
+                addTabItem(inv, i, allGroups.get(i), active);
             }
-            inv.setItem(i, tabItem);
+        } else {
+            int visible = Math.min(5, allGroups.size() - pageOffset);
+            for (int i = 0; i < visible; i++) {
+                addTabItem(inv, i, allGroups.get(pageOffset + i), active);
+            }
+            int totalPages = (allGroups.size() + 4) / 5;
+            int curPage = (pageOffset / 5) + 1;
+            inv.setItem(5, item(
+                    Material.ARROW,
+                    Component.text("Kategorien Seite " + curPage + "/" + totalPages + " ▶", NamedTextColor.YELLOW, TextDecoration.BOLD),
+                    List.of(
+                            Component.text("Insgesamt " + allGroups.size() + " Kategorien registriert.", NamedTextColor.GRAY),
+                            Component.text("» Klicken zum Weiterblättern", NamedTextColor.GREEN)
+                    )
+            ));
         }
 
         // Slot 6: Sound-Active Schalter
@@ -553,10 +601,23 @@ public final class SoundToLightChestUi implements Listener {
         boolean right = event.isRightClick();
 
         switch (slot) {
-            // Gruppenauswahl (Slots 0..5)
-            case 0, 1, 2, 3, 4, 5 -> {
-                if (slot < allGroups.size()) {
-                    openUi(player, allGroups.get(slot).groupId());
+            // Gruppenauswahl (Slots 0..5 mit Paging)
+            case 0, 1, 2, 3, 4 -> {
+                int targetIdx = (allGroups.size() <= 6) ? slot : (holder.pageOffset() + slot);
+                if (targetIdx < allGroups.size()) {
+                    openUi(player, allGroups.get(targetIdx).groupId(), holder.pageOffset());
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.4f);
+                    return;
+                }
+            }
+            case 5 -> {
+                if (allGroups.size() > 6) {
+                    int next = (holder.pageOffset() + 5 >= allGroups.size()) ? 0 : (holder.pageOffset() + 5);
+                    openUi(player, active.groupId(), next);
+                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.4f);
+                    return;
+                } else if (slot < allGroups.size()) {
+                    openUi(player, allGroups.get(slot).groupId(), 0);
                     player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.4f);
                     return;
                 }

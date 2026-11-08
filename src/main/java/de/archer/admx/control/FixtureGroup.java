@@ -3,10 +3,12 @@ package de.archer.admx.control;
 import de.archer.admx.render.color.Oklab;
 import de.archer.admx.render.fixture.FixtureState;
 import de.archer.admx.render.fixture.FixtureType;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Color;
 import org.bukkit.Material;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Repräsentiert eine adressierbare DMX-Gerätegruppe in ADMX.
@@ -95,20 +97,112 @@ public final class FixtureGroup {
         return ((hue % 360f) + 360f) % 360f;
     }
 
+    /**
+     * Bühnentechnische Rigging-Zonen zur realistischen Gruppierung von Traversen und Boden-Sets.
+     */
+    public enum StageZone {
+        UPPER_TRUSS("🏗 Obere Traversen (Upper Rigging)", NamedTextColor.AQUA),
+        MAIN_TRUSS("🎪 Hauptbühnen-Traversen (Main Grid)", NamedTextColor.BLUE),
+        SIDE_TOWER("🗼 Seitentürme & Kanzel (Side Towers)", NamedTextColor.GREEN),
+        FLOOR_PACKAGE("📐 Boden-Set & Rampe (Ground Package)", NamedTextColor.GOLD),
+        SPECIAL_FX("💥 Spezial-Effekte & Show-Laser", NamedTextColor.LIGHT_PURPLE);
+
+        private final String displayName;
+        private final NamedTextColor color;
+
+        StageZone(String displayName, NamedTextColor color) {
+            this.displayName = displayName;
+            this.color = color;
+        }
+
+        public String displayName() {
+            return displayName;
+        }
+
+        public NamedTextColor color() {
+            return color;
+        }
+    }
+
+    /**
+     * Ermittelt die bühnentechnische Zone dieser Gruppe.
+     */
+    public StageZone stageZone() {
+        return stageZoneFor(this.groupId);
+    }
+
+    public static StageZone stageZoneFor(String groupId) {
+        if (groupId == null) return StageZone.MAIN_TRUSS;
+        String id = groupId.toLowerCase(Locale.ROOT);
+        if (id.startsWith("upper_") || id.contains("roof") || id.contains("warmer")) {
+            return StageZone.UPPER_TRUSS;
+        }
+        if (id.contains("floor") || id.contains("ground") || id.contains("rampe")) {
+            return StageZone.FLOOR_PACKAGE;
+        }
+        if (id.contains("stage_") || id.contains("side") || id.contains("tower") || id.contains("dj_") || id.contains("booth")) {
+            return StageZone.SIDE_TOWER;
+        }
+        if (id.contains("laser") || id.contains("fog") || id.contains("pyro") || id.contains("fx")) {
+            return StageZone.SPECIAL_FX;
+        }
+        return StageZone.MAIN_TRUSS;
+    }
+
+    /**
+     * Liefert den praxisnahen Verwendungszweck dieser Gerätegruppe im Lichtdesign.
+     */
+    public String usagePurpose() {
+        return defaultUsagePurpose(this.groupId);
+    }
+
+    public static String defaultUsagePurpose(String groupId) {
+        if (groupId == null) return "Bühnenbeleuchtung & Effekte";
+        return switch (groupId.toLowerCase(Locale.ROOT)) {
+            case "front_truss" -> "Frontale Künstlerausleuchtung, weiches Warm-/Kaltweiß-Washlight & Face-Spots";
+            case "upper_front_truss" -> "Hohe Front-Traverse für steile Publikumsausleuchtung, Front-Blinder & Weitwinkel-Spots";
+            case "upper_mid_truss" -> "Zentrale Hochtraverse für Luft-Fächer, Gobo-Projektionen auf die Bühne & Kegelwellen";
+            case "upper_back_truss" -> "Oberste Hinter-Traverse für weit in den Raum strahlende Sharpies, Sky-Beams & Drop-Fächer";
+            case "upper_roof_grid" -> "Dach-Raster / Decken-Matrix für senkrechte Downlights, Staccato-Rain & Chaser direkt von oben";
+            case "mid_truss" -> "Mittlere Haupttraverse über der Bühne für Tiefenwirkung, Künstler-Center-Spots & Fächer";
+            case "back_truss" -> "Hintere Haupt-Traverse für klassisches Gegenlicht, messerscharfe Beam-Wände & Blinder-Hits";
+            case "stage_left" -> "Linker Bühnenturm / Gasse für plastisches Kreuzlicht, Musiker-Silhouetten & Seitenfächer";
+            case "stage_right" -> "Rechter Bühnenturm / Gasse für plastisches Kreuzlicht, Musiker-Silhouetten & Seitenfächer";
+            case "floor_beams" -> "Am Boden montierte Moving-Head Beams für dramatische Strahlenfächer steil nach oben (Uplights)";
+            case "floor_blinders" -> "Rampe & Podestkanten für Sunstrip-Lauflicht, Nahfeld-Blinder & Bühnenbegrenzung";
+            case "audience_blinders" -> "2-Lite & 4-Lite Fluter zum Einbinden des Publikums, Mitsing-Momente & massive Strobe-Schläge";
+            case "dj_booth_center" -> "Zentrierte Spezialeffekte rund um DJ-Kanzel, Drum-Riser, Center-Halo-Ringe & Akzente";
+            case "laser_rig" -> "Professionelle Show-Laser für 2D-Audience-Scanning-Fächer & punktgenaue 3D-Nadelstrahlen";
+            case "fx_fog_pyro" -> "Dunst-Erzeugung für sichtbare Beams (Hazer), schwere Bodennebel-Wellen & vertikale Pyro-Flammen";
+            case "truss_warmers" -> "Innenbeleuchtung der Traversen-Aluminiumrohre (Truss Toner) für spektakuläre Bühnenarchitektur";
+            default -> "Vielseitige DMX-Gerätegruppe für individuelle Licht- und Show-Inszenierung";
+        };
+    }
+
     public static List<FixtureGroup> createDefaultGroups() {
         return List.of(
+                // --- 1. Haupt-Traversen (Main Grid) ---
                 new FixtureGroup(
                         "front_truss",
-                        "Gruppe 1: Front-Truss",
+                        "Main Front-Truss (Keylight & Wash)",
                         Material.CYAN_STAINED_GLASS,
                         0x00D8FF,
                         ControlMode.MANUAL_LIVE,
-                        0.90f, 0f, -15f, 24f, 0f, 195f, 0.85f, 1.0f,
-                        MovementPattern.PAN_SWEEP, 1.0f, 0.65f, 0.5f
+                        1.0f, 0f, -25f, 28f, 0f, 195f, 0.85f, 1.0f,
+                        MovementPattern.PAN_SWEEP, 0.9f, 0.55f, 0.5f
+                ),
+                new FixtureGroup(
+                        "mid_truss",
+                        "Mid Stage-Truss (Center & Texture)",
+                        Material.BLUE_STAINED_GLASS,
+                        0x2980B9,
+                        ControlMode.MANUAL_LIVE,
+                        0.90f, 0f, -20f, 22f, 0f, 220f, 0.90f, 1.0f,
+                        MovementPattern.TILT_WAVE, 1.0f, 0.55f, 0.6f
                 ),
                 new FixtureGroup(
                         "back_truss",
-                        "Gruppe 2: Back-Truss",
+                        "Main Back-Truss (Backlight & Wall)",
                         Material.PURPLE_STAINED_GLASS,
                         0xB833FF,
                         ControlMode.MANUAL_LIVE,
@@ -116,36 +210,125 @@ public final class FixtureGroup {
                         MovementPattern.CIRCLE, 1.2f, 0.60f, 0.6f
                 ),
                 new FixtureGroup(
+                        "audience_blinders",
+                        "Audience Blinder Rig (Crowd Wash)",
+                        Material.REDSTONE_LAMP,
+                        0xFF3838,
+                        ControlMode.MANUAL_LIVE,
+                        1.0f, 0f, -15f, 60f, 0f, 40f, 0.20f, 1.0f,
+                        MovementPattern.STATIC, 1.0f, 0.0f, 0.0f
+                ),
+
+                // --- 2. Obere Traversen (Upper Rigging & Roof) ---
+                new FixtureGroup(
+                        "upper_front_truss",
+                        "Upper Front-Truss (High Key & Spots)",
+                        Material.LIGHT_BLUE_STAINED_GLASS,
+                        0x38B6FF,
+                        ControlMode.MANUAL_LIVE,
+                        0.95f, 0f, -35f, 32f, 0f, 205f, 0.80f, 1.0f,
+                        MovementPattern.FAN_SPREAD, 1.0f, 0.65f, 0.6f
+                ),
+                new FixtureGroup(
+                        "upper_mid_truss",
+                        "Upper Mid-Truss (Aerial Beams & Gobos)",
+                        Material.YELLOW_STAINED_GLASS,
+                        0xF1C40F,
+                        ControlMode.MANUAL_LIVE,
+                        0.90f, 0f, -20f, 20f, 0f, 50f, 0.95f, 1.0f,
+                        MovementPattern.TILT_WAVE, 1.1f, 0.60f, 0.7f
+                ),
+                new FixtureGroup(
+                        "upper_back_truss",
+                        "Upper Back-Truss (Sky Beams & Silhouette)",
+                        Material.MAGENTA_STAINED_GLASS,
+                        0xE056FD,
+                        ControlMode.MANUAL_LIVE,
+                        1.0f, 0f, -15f, 12f, 0f, 310f, 0.95f, 1.0f,
+                        MovementPattern.CIRCLE, 1.2f, 0.75f, 0.6f
+                ),
+                new FixtureGroup(
+                        "upper_roof_grid",
+                        "Upper Roof Grid (Overhead Matrix)",
+                        Material.WHITE_STAINED_GLASS,
+                        0xF0F4FF,
+                        ControlMode.MANUAL_LIVE,
+                        0.85f, 0f, -90f, 24f, 0f, 0f, 0.0f, 1.0f,
+                        MovementPattern.FIGURE_8, 0.8f, 0.40f, 0.5f
+                ),
+                new FixtureGroup(
+                        "truss_warmers",
+                        "Truss Warmers (Traversenlicht)",
+                        Material.GLOWSTONE,
+                        0xFD79A8,
+                        ControlMode.MANUAL_LIVE,
+                        0.85f, 0f, 0f, 50f, 0f, 330f, 0.85f, 1.0f,
+                        MovementPattern.STATIC, 1.0f, 0.0f, 0.0f
+                ),
+
+                // --- 3. Seitentürme & Kanzel (Side Towers & Center) ---
+                new FixtureGroup(
                         "stage_left",
-                        "Gruppe 3: Stage Left",
+                        "Side Tower Links (Kreuzlicht & Side Beams)",
                         Material.LIME_STAINED_GLASS,
                         0x33FF66,
                         ControlMode.MANUAL_LIVE,
-                        0.85f, 35f, -10f, 28f, 0f, 130f, 0.90f, 1.0f,
+                        0.85f, 35f, -10f, 26f, 0f, 130f, 0.90f, 1.0f,
                         MovementPattern.TILT_WAVE, 1.0f, 0.55f, 0.7f
                 ),
                 new FixtureGroup(
                         "stage_right",
-                        "Gruppe 4: Stage Right",
+                        "Side Tower Rechts (Kreuzlicht & Side Beams)",
                         Material.ORANGE_STAINED_GLASS,
                         0xFF8800,
                         ControlMode.MANUAL_LIVE,
-                        0.85f, -35f, -10f, 28f, 0f, 30f, 0.90f, 1.0f,
+                        0.85f, -35f, -10f, 26f, 0f, 30f, 0.90f, 1.0f,
                         MovementPattern.TILT_WAVE, 1.0f, 0.55f, 0.7f
                 ),
                 new FixtureGroup(
-                        "laser_rig",
-                        "Gruppe 5: Laser & Strobe",
-                        Material.MAGENTA_STAINED_GLASS,
-                        0xFF22AA,
+                        "dj_booth_center",
+                        "DJ Booth & Center Special (Halo & Kanzel)",
+                        Material.SEA_LANTERN,
+                        0x00F2FE,
                         ControlMode.MANUAL_LIVE,
-                        0.92f, 0f, -6f, 46f, 0f, 320f, 0.98f, 1.0f,
+                        0.90f, 0f, -45f, 30f, 0f, 180f, 0.85f, 1.0f,
+                        MovementPattern.CIRCLE, 0.8f, 0.45f, 0.5f
+                ),
+
+                // --- 4. Boden-Set & Rampe (Ground Package) ---
+                new FixtureGroup(
+                        "floor_beams",
+                        "Floor Beams (Steilstrahler & Riser Uplights)",
+                        Material.GOLD_BLOCK,
+                        0xF39C12,
+                        ControlMode.MANUAL_LIVE,
+                        1.0f, 0f, 65f, 8f, 0f, 45f, 0.95f, 1.0f,
+                        MovementPattern.FAN_SPREAD, 1.3f, 0.50f, 0.8f
+                ),
+                new FixtureGroup(
+                        "floor_blinders",
+                        "Floor Blinder & Sunstrips (Bühnenkante)",
+                        Material.OCHRE_FROGLIGHT,
+                        0xFFA502,
+                        ControlMode.MANUAL_LIVE,
+                        1.0f, 0f, 15f, 45f, 0f, 35f, 0.60f, 1.0f,
+                        MovementPattern.STATIC, 1.0f, 0.0f, 0.0f
+                ),
+
+                // --- 5. Show-Laser & Atmosphäre FX (Special FX) ---
+                new FixtureGroup(
+                        "laser_rig",
+                        "Show-Laser System (Scanning Fans & Beams)",
+                        Material.AMETHYST_CLUSTER,
+                        0xFF007F,
+                        ControlMode.MANUAL_LIVE,
+                        0.92f, 0f, -5f, 46f, 0f, 320f, 0.98f, 1.0f,
                         MovementPattern.FIGURE_8, 1.5f, 0.70f, 0.4f
                 ),
                 new FixtureGroup(
                         "fx_fog_pyro",
-                        "Gruppe 6: Nebel & Pyro FX",
-                        Material.WHITE_STAINED_GLASS,
+                        "Atmosphere & FX (Hazer, Bodennebel & Pyro)",
+                        Material.CAMPFIRE,
                         0xDCE8FF,
                         ControlMode.MANUAL_LIVE,
                         1.0f, 0f, 0f, 30f, 0f, 200f, 0.15f, 1.0f,

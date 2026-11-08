@@ -27,6 +27,7 @@ permissions:
       admx.control: true
       admx.console: true
       admx.safe: true
+      admx.fx.co2: true
   admx.place:
     description: Erlaubt das Platzieren von ADMX-Bühnengeräten per Wand oder Befehl
     default: op
@@ -38,6 +39,9 @@ permissions:
     default: op
   admx.console:
     description: Erlaubt das Öffnen und Aufstellen des Chest-UI und 3D-Hologramm-Steuerpults
+    default: op
+  admx.fx.co2:
+    description: Erlaubt das Abfeuern und Nutzen der ADMX Handheld Cryo-Bazooka und CO2-Kanonen
     default: op
   admx.safe:
     description: Erlaubt jedem Spieler den eigenen Photosensitivitäts-Schutzmodus (/admx safe) umzuschalten

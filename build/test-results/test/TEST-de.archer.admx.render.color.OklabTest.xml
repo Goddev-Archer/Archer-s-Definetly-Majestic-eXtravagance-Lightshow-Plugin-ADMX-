@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="de.archer.admx.render.color.OklabTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-08T03:54:02.294Z" hostname="DESKTOP-0001" time="0.004">
+<testsuite name="de.archer.admx.render.color.OklabTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-08T15:23:53.651Z" hostname="DESKTOP-0001" time="0.003">
   <properties/>
   <testcase name="testInterpolationMidpoint()" classname="de.archer.admx.render.color.OklabTest" time="0.001"/>
   <testcase name="testPureColorsRoundtrip()" classname="de.archer.admx.render.color.OklabTest" time="0.001"/>

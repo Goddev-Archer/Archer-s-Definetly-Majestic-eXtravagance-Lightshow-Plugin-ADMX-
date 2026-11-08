@@ -223,8 +223,9 @@ public final class AdmxDatabase implements AutoCloseable {
                 }
             }
 
-            if (groups.isEmpty()) {
-                for (FixtureGroup def : FixtureGroup.createDefaultGroups()) {
+            // Standard-Bühnengruppen initialisieren bzw. neue Kategorien (z.B. Upper-Truss) ergänzen
+            for (FixtureGroup def : FixtureGroup.createDefaultGroups()) {
+                if (!groups.containsKey(def.groupId())) {
                     saveGroup(def);
                     groups.put(def.groupId(), def);
                 }
