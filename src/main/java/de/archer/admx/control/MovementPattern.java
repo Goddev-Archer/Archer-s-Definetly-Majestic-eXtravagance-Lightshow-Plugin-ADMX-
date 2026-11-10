@@ -52,7 +52,37 @@ public enum MovementPattern {
      * Cinematic Stomp Snap: Schlägt synchron auf schwere Orchester-/Tom-Schläge ein.
      * Sofortiger 100% Snap mit natürlichem Nachhall-Fadeout.
      */
-    CINEMATIC_STOMP_SNAP("Cinematic Stomp Snap");
+    CINEMATIC_STOMP_SNAP("Cinematic Stomp Snap"),
+
+    /**
+     * Sanfter Fächer-Sway: Breiter, beruhigender Fächer mit langsamer horizontaler und vertikaler Schwingung.
+     */
+    GENTLE_FAN_SWAY("Sanfter Fächer-Sway"),
+
+    /**
+     * Atmender Center-Glow: Alle Köpfe konvergieren zur Bühnenmitte mit synchroner Atembewegung.
+     */
+    BREATHING_CENTER_GLOW("Atmender Center-Glow"),
+
+    /**
+     * Floor-Punch Breathe: Nach unten gerichteter Tanzflächen-Fokus mit kraftvollem Bass-Pumpen.
+     */
+    FLOOR_PUNCH_BREATHE("Floor-Punch Breathe"),
+
+    /**
+     * Needle Race (Staccato): Messerscharfe Beambewegungen springen staccatoartig über Raumkoordinaten.
+     */
+    NEEDLE_RACE_STACCATO("Needle Race (Staccato)"),
+
+    /**
+     * Weites Sunset-Orbital: Raumfüllende, weite Lissajous-Kurve für atmosphärische Höhepunkte.
+     */
+    WIDE_ORBITAL_SUNSET("Weites Sunset-Orbital"),
+
+    /**
+     * Kerzenflackern (Atmosphärisch): Statisch fokussierte Beams mit organischem Mikrozittern.
+     */
+    CANDLE_FLICKER_STATIC("Kerzenflackern (Atmosphärisch)");
 
     private final String displayName;
 

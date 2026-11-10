@@ -22,9 +22,37 @@
   let wireCursor = $state<{ x: number; y: number }>({ x: 0, y: 0 });
   let hoveredInputPinNodeId = $state<string | null>(null);
   let selectedConnectionId = $state<string | null>(null);
+  let hoveredConnectionId = $state<string | null>(null);
 
-  // Add Brick Catalog state
+  // Add Brick Catalog state & smart insertion
   let showAddMenu = $state(false);
+  let insertPlacementMode = $state<"after_selected" | "append_end" | "free">("after_selected");
+
+  let selectedNodeIdx = $derived(
+    studio.nodes.findIndex((n) => n.id === studio.selectedNodeId)
+  );
+  let selectedNode = $derived(
+    selectedNodeIdx !== -1 ? studio.nodes[selectedNodeIdx] : null
+  );
+
+  function handleFlowboardKeyDown(e: KeyboardEvent) {
+    if ((e.target as HTMLElement).tagName === "INPUT") return;
+    if (e.key === "Delete" || e.key === "Backspace") {
+      if (selectedConnectionId) {
+        deleteConnection(selectedConnectionId);
+        e.preventDefault();
+      } else if (studio.selectedNodeId) {
+        studio.removeNode(studio.selectedNodeId);
+        e.preventDefault();
+      }
+    }
+  }
+
+  function handlePinContextMenu(e: MouseEvent, node: SongSection, pinType: "in" | "out", pinIndex?: number) {
+    e.preventDefault();
+    e.stopPropagation();
+    studio.disconnectPin(node.id, pinType, pinIndex);
+  }
 
   // Compute smart bezier curve between pins (handles forward, downward and loop-back routing)
   function computeCablePath(x1: number, y1: number, x2: number, y2: number): string {
@@ -47,6 +75,16 @@
       const yOffset = pinIndex === 0 ? node.h * 0.35 : node.h * 0.70;
       return { x: node.x + node.w, y: node.y + yOffset };
     }
+  }
+
+  // Convert screen / window pointer coordinates to Canvas World coordinates
+  function screenToWorld(clientX: number, clientY: number): { x: number; y: number } {
+    if (!canvasContainer) return { x: clientX, y: clientY };
+    const rect = canvasContainer.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left - panX) / zoom,
+      y: (clientY - rect.top - panY) / zoom,
+    };
   }
 
   // Canvas Pan & Zoom Handlers
@@ -88,16 +126,18 @@
   function handleNodePointerDown(e: PointerEvent, node: SongSection) {
     if (
       (e.target as HTMLElement).closest(".pin") ||
-      (e.target as HTMLElement).closest(".btn-delete-node")
+      (e.target as HTMLElement).closest(".btn-delete-node") ||
+      (e.target as HTMLElement).closest(".btn-unlink-node")
     ) {
       return;
     }
     studio.selectedNodeId = node.id;
     isDraggingNode = true;
     draggedNodeId = node.id;
+    const worldPos = screenToWorld(e.clientX, e.clientY);
     dragOffset = {
-      x: (e.clientX - panX) / zoom - node.x,
-      y: (e.clientY - panY) / zoom - node.y,
+      x: worldPos.x - node.x,
+      y: worldPos.y - node.y,
     };
 
     window.addEventListener("pointermove", handleGlobalPointerMove);
@@ -111,21 +151,30 @@
     } else if (isDraggingNode && draggedNodeId) {
       const node = studio.nodes.find((n) => n.id === draggedNodeId);
       if (node) {
-        node.x = Math.round((e.clientX - panX) / zoom - dragOffset.x);
-        node.y = Math.round((e.clientY - panY) / zoom - dragOffset.y);
+        const worldPos = screenToWorld(e.clientX, e.clientY);
+        node.x = Math.round(worldPos.x - dragOffset.x);
+        node.y = Math.round(worldPos.y - dragOffset.y);
       }
-    } else if (isWiring) {
-      const curX = (e.clientX - panX) / zoom;
-      const curY = (e.clientY - panY) / zoom;
+    } else if (isWiring && wiringFrom) {
+      const worldPos = screenToWorld(e.clientX, e.clientY);
+      const curX = worldPos.x;
+      const curY = worldPos.y;
 
       // Magnetic Snapping to closest valid Input Pin
       let snapped = false;
       hoveredInputPinNodeId = null;
       for (const n of studio.nodes) {
-        if (wiringFrom && n.id !== wiringFrom.nodeId) {
+        if (n.id !== wiringFrom.nodeId) {
           const pin = getPinCoords(n, "in");
           const dist = Math.hypot(curX - pin.x, curY - pin.y);
-          if (dist < 32) {
+          // Check proximity to pin or hovering over node target area
+          const insideNode =
+            curX >= n.x - 20 &&
+            curX <= n.x + n.w + 20 &&
+            curY >= n.y - 10 &&
+            curY <= n.y + n.h + 10;
+
+          if (dist < 42 || insideNode) {
             wireCursor = { x: pin.x, y: pin.y };
             hoveredInputPinNodeId = n.id;
             snapped = true;
@@ -139,21 +188,50 @@
     }
   }
 
-  function handleGlobalPointerUp() {
+  function handleGlobalPointerUp(e?: PointerEvent) {
     isPanning = false;
     isDraggingNode = false;
     draggedNodeId = null;
-    if (isWiring) {
+
+    if (isWiring && wiringFrom) {
+      // Connect if snapped to input pin or released over valid target node
+      let targetNodeId = hoveredInputPinNodeId;
+
+      if (!targetNodeId && e && canvasContainer) {
+        const worldPos = screenToWorld(e.clientX, e.clientY);
+        for (const n of studio.nodes) {
+          if (n.id !== wiringFrom.nodeId) {
+            const pin = getPinCoords(n, "in");
+            const dist = Math.hypot(worldPos.x - pin.x, worldPos.y - pin.y);
+            const insideNode =
+              worldPos.x >= n.x - 20 &&
+              worldPos.x <= n.x + n.w + 20 &&
+              worldPos.y >= n.y - 10 &&
+              worldPos.y <= n.y + n.h + 10;
+            if (dist < 50 || insideNode) {
+              targetNodeId = n.id;
+              break;
+            }
+          }
+        }
+      }
+
+      if (targetNodeId && targetNodeId !== wiringFrom.nodeId) {
+        studio.addConnection(wiringFrom.nodeId, wiringFrom.pin, targetNodeId, 0);
+      }
+
       isWiring = false;
       wiringFrom = null;
       hoveredInputPinNodeId = null;
     }
+
     window.removeEventListener("pointermove", handleGlobalPointerMove);
     window.removeEventListener("pointerup", handleGlobalPointerUp);
   }
 
   // Wiring Handlers
   function startWiring(e: PointerEvent, node: SongSection, pinIndex: number) {
+    e.preventDefault();
     e.stopPropagation();
     const pin = getPinCoords(node, "out", pinIndex);
     isWiring = true;
@@ -164,20 +242,21 @@
       y: pin.y,
     };
     wireCursor = { x: pin.x, y: pin.y };
+    hoveredInputPinNodeId = null;
 
     window.addEventListener("pointermove", handleGlobalPointerMove);
     window.addEventListener("pointerup", handleGlobalPointerUp);
   }
 
   function completeWiring(e: PointerEvent, targetNode: SongSection) {
+    e.preventDefault();
     e.stopPropagation();
-    if (!isWiring || !wiringFrom) return;
-    if (wiringFrom.nodeId !== targetNode.id) {
+    if (isWiring && wiringFrom && wiringFrom.nodeId !== targetNode.id) {
       studio.addConnection(wiringFrom.nodeId, wiringFrom.pin, targetNode.id, 0);
+      isWiring = false;
+      wiringFrom = null;
+      hoveredInputPinNodeId = null;
     }
-    isWiring = false;
-    wiringFrom = null;
-    hoveredInputPinNodeId = null;
   }
 
   function deleteConnection(connId: string) {
@@ -562,17 +641,60 @@
   ];
 
   function addBrickFromCatalog(template: any) {
+    if (insertPlacementMode === "after_selected" && studio.selectedNodeId) {
+      studio.insertNodeAfter(studio.selectedNodeId, template);
+      showAddMenu = false;
+      return;
+    }
+
+    if (insertPlacementMode === "free") {
+      const newX = Math.round(-panX / zoom + 240);
+      const newY = Math.round(-panY / zoom + 160);
+      const newSection: SongSection = {
+        id: `custom_node_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        name: `${template.name}`,
+        section_type: "CUSTOM",
+        start_bar: 0,
+        end_bar: template.bars,
+        bars: template.bars,
+        start_time: 0,
+        end_time: (template.bars * 4 * 60) / Math.max(20, studio.bpm),
+        color: template.color,
+        pattern: template.pattern,
+        speed: template.speed,
+        amp: template.amp,
+        strobe: template.strobe,
+        flame: template.flame,
+        dim: template.dim,
+        ausklang_mode: "NATURAL_EXPONENTIAL",
+        decay_tau_ms: template.tau,
+        has_ausklang: template.tau > 200,
+        cliffhangers: [],
+        cinematic_hits: [],
+        x: newX,
+        y: newY,
+        w: 190,
+        h: 120,
+      };
+      studio.nodes.push(newSection);
+      studio.selectedNodeId = newSection.id;
+      showAddMenu = false;
+      return;
+    }
+
+    // Default: Append to end of chain
     const idx = studio.nodes.length + 1;
     const lastNode = studio.nodes[studio.nodes.length - 1];
     const newX = lastNode ? lastNode.x + 250 : 60;
     const newY = lastNode ? lastNode.y : 120;
+    const startBar = lastNode ? lastNode.end_bar : 0;
 
     const newSection: SongSection = {
       id: `custom_node_${idx}_${Date.now().toString(36).substring(4)}`,
-      name: `${idx}. ${template.name}`,
+      name: `${template.name}`,
       section_type: "CUSTOM",
-      start_bar: lastNode ? lastNode.end_bar : 0,
-      end_bar: lastNode ? lastNode.end_bar + template.bars : template.bars,
+      start_bar: startBar,
+      end_bar: startBar + template.bars,
       bars: template.bars,
       start_time: 0,
       end_time: 0,
@@ -605,6 +727,8 @@
     showAddMenu = false;
   }
 </script>
+
+<svelte:window onkeydown={handleFlowboardKeyDown} />
 
 <div class="flowboard-root">
   <!-- Top Toolbar -->
@@ -661,6 +785,33 @@
         <div class="catalog-header">
           <span>Bibliothek: 20+ Licht-, Sound- & Spezialeffekt-Bausteine</span>
           <button class="btn-close" onclick={() => (showAddMenu = false)}>✕</button>
+        </div>
+
+        <!-- Insertion Placement Mode Selector -->
+        <div class="placement-selector">
+          <span class="placement-label">Einfügen:</span>
+          <button
+            class="place-pill {insertPlacementMode === 'after_selected' ? 'active' : ''}"
+            onclick={() => (insertPlacementMode = 'after_selected')}
+            disabled={!studio.selectedNodeId}
+            title={studio.selectedNodeId ? `Fügt neuen Baustein nach #${selectedNodeIdx + 1} (${selectedNode?.name}) ein und trennt den Signalweg auf` : 'Wähle zuerst einen Baustein aus, um dazwischen einzufügen'}
+          >
+            📌 Dazwischen einfügen {#if selectedNode}(nach #{selectedNodeIdx + 1}){/if}
+          </button>
+          <button
+            class="place-pill {insertPlacementMode === 'append_end' ? 'active' : ''}"
+            onclick={() => (insertPlacementMode = 'append_end')}
+            title="Am Ende der Kette anfügen"
+          >
+            ➡️ Am Ende anfügen
+          </button>
+          <button
+            class="place-pill {insertPlacementMode === 'free' ? 'active' : ''}"
+            onclick={() => (insertPlacementMode = 'free')}
+            title="Frei auf der Leinwand platzieren ohne Kabel"
+          >
+            ⚡ Frei platzieren (ohne Kabel)
+          </button>
         </div>
         <div class="catalog-body">
           {#each brickCatalog as cat}
@@ -727,7 +878,7 @@
             {@const isPlaying = studio.playback.is_playing && studio.nodes[studio.playback.active_phase_idx]?.id === fromNode.id}
             {@const isSelected = selectedConnectionId === conn.id}
 
-            <!-- Invisible Wide Hitarea for Cable Selection -->
+            <!-- Invisible Wide Hitarea for Cable Selection & Hover Delete -->
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <path
@@ -736,6 +887,10 @@
               onclick={(e) => {
                 e.stopPropagation();
                 selectedConnectionId = isSelected ? null : conn.id;
+              }}
+              onpointerenter={() => (hoveredConnectionId = conn.id)}
+              onpointerleave={() => {
+                if (hoveredConnectionId === conn.id) hoveredConnectionId = null;
               }}
             />
 
@@ -749,14 +904,22 @@
               filter={isPlaying ? "url(#cableGlow)" : "none"}
             />
 
-            <!-- Midpoint Delete Badge when Cable is Selected -->
-            {#if isSelected}
+            <!-- Midpoint Delete Badge when Cable is Selected or Hovered -->
+            {#if isSelected || hoveredConnectionId === conn.id}
               {@const midX = (p1.x + p2.x) / 2}
               {@const midY = (p1.y + p2.y) / 2}
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <g class="cable-delete-badge" onclick={() => deleteConnection(conn.id)}>
-                <circle cx={midX} cy={midY} r="11" fill="#e63946" stroke="#ffffff" stroke-width="1.5" />
+              <g
+                class="cable-delete-badge"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  deleteConnection(conn.id);
+                }}
+                onpointerenter={() => (hoveredConnectionId = conn.id)}
+              >
+                <title>Kabel trennen / entfernen</title>
+                <circle cx={midX} cy={midY} r="12" fill="#e63946" stroke="#ffffff" stroke-width="1.5" />
                 <text x={midX} y={midY + 4} font-size="11" fill="#ffffff" text-anchor="middle" font-weight="bold">✕</text>
               </g>
             {/if}
@@ -775,6 +938,18 @@
           />
         {/if}
       </svg>
+
+      {#if studio.nodes.length === 0}
+        <div class="empty-canvas-hint">
+          <div class="hint-icon">⚡</div>
+          <div class="hint-title">Flowboard Studio bereit</div>
+          <div class="hint-text">
+            Gib in der <strong>Timeline</strong> den Pfad zu deiner Audiodatei ein und klicke auf
+            <span class="highlight">⚡ Neu takten (Rust DSP)</span> oder füge über 
+            <span class="highlight">➕ Baustein hinzufügen</span> manuell Sequenzen hinzu.
+          </div>
+        </div>
+      {/if}
 
       <!-- Node Bricks -->
       {#each studio.nodes as node, i (node.id)}
@@ -799,6 +974,16 @@
           <div class="brick-header" style="background: {node.color || '#3daee9'}">
             <span class="brick-num">#{i + 1}</span>
             <span class="brick-title" title={node.name}>{node.name}</span>
+            <button
+              class="btn-unlink-node"
+              title="Alle Kabel von diesem Baustein trennen"
+              onclick={(e) => {
+                e.stopPropagation();
+                studio.disconnectPin(node.id, "all");
+              }}
+            >
+              ✂
+            </button>
             <button
               class="btn-delete-node"
               title="Baustein löschen"
@@ -839,8 +1024,9 @@
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="pin pin-in {isHoveredTarget ? 'pin-snapped' : ''}"
-            title="Eingang (Hier andocken)"
+            title="Eingang: Hier andocken (Rechtsklick: Eingehendes Kabel trennen)"
             onpointerup={(e) => completeWiring(e, node)}
+            oncontextmenu={(e) => handlePinContextMenu(e, node, "in")}
           >
             <span class="pin-hint">IN</span>
           </div>
@@ -849,8 +1035,9 @@
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="pin pin-out pin-out-next"
-            title="Ausgang: Sequence NEXT (Kabel ziehen)"
+            title="Ausgang NEXT: Kabel ziehen (Rechtsklick: Kabel trennen)"
             onpointerdown={(e) => startWiring(e, node, 0)}
+            oncontextmenu={(e) => handlePinContextMenu(e, node, "out", 0)}
           >
             <span class="pin-hint">NEXT</span>
           </div>
@@ -859,8 +1046,9 @@
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="pin pin-out pin-out-accent"
-            title="Ausgang: FX / 808 / CRYO Trigger (Kabel ziehen)"
+            title="Ausgang FX: Kabel ziehen (Rechtsklick: Kabel trennen)"
             onpointerdown={(e) => startWiring(e, node, 1)}
+            oncontextmenu={(e) => handlePinContextMenu(e, node, "out", 1)}
           >
             <span class="pin-hint">FX</span>
           </div>
@@ -1096,6 +1284,21 @@
     flex: 1;
   }
 
+  .btn-unlink-node {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 2px;
+    transition: all 0.15s ease;
+  }
+  .btn-unlink-node:hover {
+    background: rgba(230, 57, 70, 0.6);
+    color: #ffffff;
+  }
+
   .btn-delete-node {
     background: transparent;
     border: none;
@@ -1273,6 +1476,51 @@
     color: #ffffff;
   }
 
+  .placement-selector {
+    background: #16181a;
+    border-bottom: 1px solid #23272b;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .placement-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #8c939d;
+  }
+
+  .place-pill {
+    background: #23272b;
+    border: 1px solid #363c42;
+    border-radius: 4px;
+    color: #abb0b6;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .place-pill:hover:not(:disabled) {
+    background: #2c3238;
+    color: #ffffff;
+    border-color: #3daee9;
+  }
+
+  .place-pill.active {
+    background: #1e3a5f;
+    border-color: #3daee9;
+    color: #38bdf8;
+  }
+
+  .place-pill:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
   .catalog-body {
     padding: 14px;
     overflow-y: auto;
@@ -1345,5 +1593,43 @@
     color: #8c939d;
     font-family: 'Consolas', monospace;
     margin-top: 2px;
+  }
+
+  .empty-canvas-hint {
+    position: absolute;
+    top: 140px;
+    left: 200px;
+    width: 480px;
+    padding: 24px;
+    background: rgba(26, 32, 42, 0.85);
+    border: 1px dashed rgba(61, 174, 233, 0.4);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    text-align: center;
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+  }
+
+  .hint-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+
+  .hint-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #3daee9;
+    margin-bottom: 6px;
+  }
+
+  .hint-text {
+    font-size: 11px;
+    color: #abb0b6;
+    line-height: 1.5;
+  }
+
+  .hint-text .highlight {
+    color: #2dd4eb;
+    font-weight: 600;
   }
 </style>

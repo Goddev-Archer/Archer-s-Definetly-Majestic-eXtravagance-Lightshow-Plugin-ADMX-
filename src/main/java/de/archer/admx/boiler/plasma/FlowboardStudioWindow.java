@@ -168,18 +168,22 @@ public final class FlowboardStudioWindow extends PlasmaWindow {
     }
 
     public void generateDefaultSongFlow() {
+        generateDefaultSongFlow(128.0, MusicGenre.TECHNO);
+    }
+
+    public void generateDefaultSongFlow(double bpm, MusicGenre genre) {
         this.nodes.clear();
         this.cables.clear();
 
-        // Vollständiger 166-Takte Ablauf (146 BPM Schranz-Remix) inklusive Cliffhanger & Cinematic Drums
-        FlowNode n1 = new FlowNode("n1", "1. Intro Rap", BrickType.INTRO_STOMP, 18, 45, 4);
-        FlowNode n2 = new FlowNode("n2", "2. Verse Rap", BrickType.PIANO_RAP, 168, 45, 16);
-        FlowNode n3 = new FlowNode("n3", "3. Snare Riser", BrickType.SNARE_BUILDUP, 318, 45, 4);
-        FlowNode n4 = new FlowNode("n4", "4. Cliffhanger", BrickType.CLIFFHANGER, 468, 45, 1);
-        FlowNode n5 = new FlowNode("n5", "5. Drop Snap 1", BrickType.BRASS_DROP_SNAP, 18, 145, 16);
-        FlowNode n6 = new FlowNode("n6", "6. Cinematic Stomps", BrickType.CINEMATIC_DRUMS, 168, 145, 8);
-        FlowNode n7 = new FlowNode("n7", "7. Vocal Bridge", BrickType.VOCAL_BREAKDOWN, 318, 145, 16);
-        FlowNode n8 = new FlowNode("n8", "8. Climax Drop 2", BrickType.BRASS_DROP_SNAP, 468, 145, 20);
+        boolean isChill = bpm <= 115.0 || genre == MusicGenre.ACOUSTIC_TRAP || genre == MusicGenre.AMBIENT;
+        FlowNode n1 = new FlowNode("n1", isChill ? "1. Intro Ambience" : "1. Intro Stomp", BrickType.INTRO_STOMP, 18, 45, 4);
+        FlowNode n2 = new FlowNode("n2", isChill ? "2. Melodic Verse" : "2. Verse Groove", BrickType.PIANO_RAP, 168, 45, 16);
+        FlowNode n3 = new FlowNode("n3", "3. Buildup Riser", BrickType.SNARE_BUILDUP, 318, 45, 4);
+        FlowNode n4 = new FlowNode("n4", "4. Cliffhanger Freeze", BrickType.CLIFFHANGER, 468, 45, 1);
+        FlowNode n5 = new FlowNode("n5", isChill ? "5. Melodic Drop" : "5. Drop Snap", isChill ? BrickType.PIANO_RAP : BrickType.BRASS_DROP_SNAP, 18, 145, 16);
+        FlowNode n6 = new FlowNode("n6", "6. Cinematic Drums", BrickType.CINEMATIC_DRUMS, 168, 145, 8);
+        FlowNode n7 = new FlowNode("n7", "7. Atmospheric Break", BrickType.VOCAL_BREAKDOWN, 318, 145, 16);
+        FlowNode n8 = new FlowNode("n8", isChill ? "8. Outro Glow" : "8. Climax Drop", isChill ? BrickType.VOCAL_BREAKDOWN : BrickType.BRASS_DROP_SNAP, 468, 145, 20);
 
         this.nodes.add(n1);
         this.nodes.add(n2);
@@ -239,7 +243,7 @@ public final class FlowboardStudioWindow extends PlasmaWindow {
                 "+ BRICK", new Color(38, 50, 74), TEXT_WHITE);
 
         drawSmallButton(g, new Rectangle(contentRect.x + 144, contentRect.y + 3, 90, 20),
-                "⚡ 146 BPM AUTO", new Color(95, 52, 148), TEXT_WHITE);
+                "⚡ AUTO-FLOW", new Color(95, 52, 148), TEXT_WHITE);
 
         drawSmallButton(g, new Rectangle(contentRect.x + 238, contentRect.y + 3, 56, 20),
                 "💾 SAVE", new Color(180, 105, 20), TEXT_WHITE);
@@ -448,20 +452,35 @@ public final class FlowboardStudioWindow extends PlasmaWindow {
                 return true;
             }
             if (new Rectangle(144, 3, 90, 20).contains(localX, localY)) {
-                // 146 BPM Auto-Flow generieren
-                generateDefaultSongFlow();
+                // Dynamischen Auto-Flow basierend auf Live-Audio oder Standard generieren
+                double liveBpm = 128.0;
+                MusicGenre liveGenre = MusicGenre.TECHNO;
+                if (plugin != null) {
+                    BeatSnapshot beat = plugin.getAudioDspManager().getSnapshot();
+                    if (beat.bpm() >= 40.0) {
+                        liveBpm = beat.bpm();
+                        liveGenre = beat.genre();
+                    }
+                }
+                generateDefaultSongFlow(liveBpm, liveGenre);
                 return true;
             }
             if (new Rectangle(238, 3, 56, 20).contains(localX, localY)) {
                 // Als Auto-Show Profile in Slot speichern
                 if (plugin != null) {
+                    BeatSnapshot beat = plugin.getAudioDspManager().getSnapshot();
+                    double effBpm = beat.bpm() >= 40.0 ? beat.bpm() : 128.0;
+                    MusicGenre genre = beat.genre() != null ? beat.genre() : MusicGenre.TECHNO;
+                    boolean isChill = effBpm <= 115.0 || genre == MusicGenre.ACOUSTIC_TRAP || genre == MusicGenre.AMBIENT;
                     AutoShowProfile profile = new AutoShowProfile(
-                            "flow_show", "Flowboard 146 Schranz", 0, MusicGenre.TECHNO, ChoreoStyle.SCHRANZ_STACCATO,
-                            146.0, 16, 0.04f, 0.95f, 0.20f, 0.10f, 0.85f, 1.50f,
+                            "flow_show", String.format(Locale.ROOT, "Flowboard %.0f BPM", effBpm), 0, genre,
+                            isChill ? ChoreoStyle.SUNSET_GROOVE : ChoreoStyle.SCHRANZ_STACCATO,
+                            effBpm, 16, 0.04f, 0.95f, 0.20f, 0.10f, 0.85f, 1.50f,
                             38f, 195f, 0.98f,
-                            MovementPattern.TILT_WAVE, MovementPattern.PAN_SWEEP, MovementPattern.FAN_SPREAD, MovementPattern.HARD_SNAP_STACCATO,
+                            MovementPattern.TILT_WAVE, MovementPattern.PAN_SWEEP, MovementPattern.FAN_SPREAD,
+                            isChill ? MovementPattern.WIDE_ORBITAL_SUNSET : MovementPattern.HARD_SNAP_STACCATO,
                             1.50f, 1.00f, 0.90f, 10.0f, true, true,
-                            256, 4, 8, 0.99f
+                            0, 0, 0, 0.0f
                     );
                     plugin.saveAutoShowProfile(profile);
                     plugin.getSmartAutoDirector().recallProfile(profile);

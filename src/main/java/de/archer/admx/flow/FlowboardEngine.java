@@ -261,13 +261,30 @@ public final class FlowboardEngine {
                     g.setStrobeHz(0.0f);
                 }
             }
+            case COMPOSITE_CUE -> {
+                MovementPattern pattern = MovementPattern.STATIC;
+                if (node.paramString() != null && !node.paramString().isBlank()) {
+                    try {
+                        pattern = MovementPattern.valueOf(node.paramString().trim().toUpperCase(java.util.Locale.ROOT));
+                    } catch (Exception ignored) {
+                        pattern = MovementPattern.CIRCLE;
+                    }
+                }
+                float speed = (node.param1() > 0f) ? node.param1() : 1.0f;
+                float dim = (node.param2() >= 0f) ? Math.clamp(node.param2(), 0.0f, 1.0f) : 1.0f;
+                for (FixtureGroup g : targets) {
+                    g.setMovementPattern(pattern);
+                    g.setMovementSpeed(speed);
+                    g.setDimmer(dim);
+                }
+            }
         }
     }
 
     private void cleanupNodeEffect(FlowNode node, Map<String, FixtureGroup> allGroups) {
         Collection<FixtureGroup> targets = resolveTargetGroups(node, allGroups);
         switch (node.type()) {
-            case STROBE_BLAST -> {
+            case STROBE_BLAST, COMPOSITE_CUE -> {
                 for (FixtureGroup g : targets) {
                     g.setStrobeHz(0.0f);
                 }

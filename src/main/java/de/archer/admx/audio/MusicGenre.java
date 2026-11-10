@@ -36,6 +36,18 @@ public enum MusicGenre {
             50.0, 120.0,
             NamedTextColor.GRAY,
             "Wenig bis keine Kicks, atmosphärische sanfte Lichtteppiche und langsame Farb-Fades."
+    ),
+    ACOUSTIC_TRAP(
+            "Acoustic / Hybrid Trap",
+            70.0, 115.0,
+            NamedTextColor.GOLD,
+            "Akustische Melodielinien kombiniert mit tiefen Trap-Bässen, atmosphärische weite Fächer und sanfte Atem-Glows."
+    ),
+    MELODIC_EDM(
+            "Melodic EDM / Future Bass",
+            125.0, 155.0,
+            NamedTextColor.AQUA,
+            "Melodische Akkordfolgen, euphorische Hooklines, raumfüllende Orbital- und Sweep-Chases."
     );
 
     private final String displayName;

@@ -61,22 +61,20 @@ pub fn run_parallel_simulated_annealing(
 
         let (t_dim, t_tau, t_speed, t_strobe, t_amp) = if is_freeze {
             (15.0f32, 260.0f32, 0.0f32, 0.0f32, 0.0f32)
-        } else if n.section_type == "PEAK_DROP" {
-            (100.0, 120.0, 1.50, 10.0, 1.0)
-        } else if n.section_type == "CINEMATIC_DRUMS" {
-            (95.0, 280.0, 1.20, 3.0, 0.95)
-        } else if n.section_type.contains("BUILDUP") {
-            (95.0, 160.0, 1.35, (4.0 + 6.0 * m_h).min(10.0), 0.85)
-        } else if n.section_type == "BREAKDOWN" {
-            (70.0, 340.0, 0.50, 0.0, 0.40)
         } else {
-            (
-                (35.0 + 65.0 * m_e.powf(0.75)).clamp(30.0, 100.0),
-                (160.0 + 200.0 * m_dec).clamp(100.0, 380.0),
-                0.95,
-                0.0,
-                (0.45 + 0.55 * p_e).clamp(0.35, 1.0),
-            )
+            // Kontinuierliche Zielparameter-Berechnung aus den echten Audio-Kurven
+            let tempo_scale = (analysis.bpm as f32 / 120.0).clamp(0.6, 1.8);
+            let target_dim = (25.0 + 75.0 * (m_e * 0.65 + p_e * 0.35).powf(0.85)).clamp(25.0, 100.0);
+            let target_tau = (110.0 + 440.0 * m_dec).clamp(90.0, 580.0);
+            let target_speed = ((0.55 + 1.15 * m_e) * tempo_scale).clamp(0.4, 2.5);
+            // Strenges Einhalten des Fotosensibilitäts-Limits (SEC-09, SEC-15): Strobe max 10.0 Hz
+            let target_strobe = if m_h > 0.35 && m_e > 0.65 {
+                ((m_h - 0.35) * 16.0).clamp(2.0, 10.0)
+            } else {
+                0.0
+            };
+            let target_amp = (0.35 + 0.65 * (m_e * 0.5 + p_e * 0.5)).clamp(0.35, 1.0);
+            (target_dim, target_tau, target_speed, target_strobe, target_amp)
         };
 
         targets.push(ParamTarget {
@@ -113,7 +111,16 @@ pub fn run_parallel_simulated_annealing(
             let node_loss: f32 = diff.iter().zip(&weights).map(|(d, w)| d * d * w).sum();
             total += node_loss as f64;
         }
-        total / num_nodes as f64
+
+        // Dynamischer Phasen-Kontrast-Loss: Belohnt markante Helligkeitssprünge zwischen Abschnitten
+        let mut contrast_loss = 0.0;
+        for j in 1..num_nodes {
+            let target_jump = (targets[j].dim - targets[j - 1].dim).abs();
+            let actual_jump = (theta[j][0] - theta[j - 1][0]).abs();
+            contrast_loss += ((actual_jump - target_jump).powi(2) as f64) * 0.12;
+        }
+
+        (total + contrast_loss) / num_nodes as f64
     };
 
     let mut best_theta = current_theta.clone();

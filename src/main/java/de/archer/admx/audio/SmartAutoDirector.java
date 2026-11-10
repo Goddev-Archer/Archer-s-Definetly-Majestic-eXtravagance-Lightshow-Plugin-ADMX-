@@ -513,7 +513,8 @@ public final class SmartAutoDirector {
         float panAmp = switch (genre) {
             case DRUM_AND_BASS -> 125f;
             case TECHNO, HOUSE_CLUB -> 95f;
-            case RAP_HIPHOP -> 65f;
+            case MELODIC_EDM -> 110f;
+            case RAP_HIPHOP, ACOUSTIC_TRAP -> 65f;
             case AMBIENT -> 45f;
         };
         float speedMul = (genre == MusicGenre.DRUM_AND_BASS) ? 1.5f : (genre == MusicGenre.AMBIENT ? 0.35f : 0.85f);
@@ -639,6 +640,14 @@ public final class SmartAutoDirector {
             }
             case HOUSE_CLUB -> {
                 float[] hues = secondary ? new float[]{185f, 325f, 45f, 200f} : new float[]{22f, 335f, 175f, 40f};
+                yield hues[phraseIndex];
+            }
+            case ACOUSTIC_TRAP -> {
+                float[] hues = secondary ? new float[]{35f, 50f, 25f, 210f} : new float[]{45f, 30f, 18f, 200f};
+                yield hues[phraseIndex];
+            }
+            case MELODIC_EDM -> {
+                float[] hues = secondary ? new float[]{180f, 280f, 320f, 195f} : new float[]{200f, 310f, 270f, 175f};
                 yield hues[phraseIndex];
             }
             case AMBIENT -> (float) ((tickCounter * 0.4 + (secondary ? 60.0 : 0.0)) % 360.0);

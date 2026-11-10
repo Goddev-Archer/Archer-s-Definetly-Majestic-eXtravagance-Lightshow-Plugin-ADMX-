@@ -259,6 +259,7 @@ public final class HoloConsoleUi implements Listener {
     private RenderGroup buildConsoleRenderGroup(SpawnedHoloConsole console) {
         RenderGroup group = new RenderGroup();
         Location origin = console.origin();
+        if (origin == null || !origin.isWorldLoaded()) return group;
         World world = origin.getWorld();
         if (world == null) return group;
 

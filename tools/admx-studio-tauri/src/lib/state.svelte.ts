@@ -11,12 +11,18 @@ import type {
 export class StudioState {
   // Audio & Analysis State
   filePath = $state(
-    "C:/Users/User/Documents/Image-Line/FL Studio/Projects/Hide (G0d'sMusic Remake)/Hide (G0d'sMusic Remake).wav"
+    typeof localStorage !== "undefined"
+      ? localStorage.getItem("admx_last_audio_file") || ""
+      : ""
   );
-  dbPath = $state("c:/dev/test-server/plugins/ADMX/admx.db");
+  dbPath = $state(
+    typeof localStorage !== "undefined"
+      ? localStorage.getItem("admx_last_db_path") || "plugins/ADMX/admx.db"
+      : "plugins/ADMX/admx.db"
+  );
   slotIndex = $state(1);
-  bpm = $state(100.0);
-  gridOffsetSec = $state(0.036);
+  bpm = $state(120.0);
+  gridOffsetSec = $state(0.0);
   analysis = $state<AnalysisResult | null>(null);
   nodes = $state<SongSection[]>([]);
   connections = $state<FlowConnection[]>([]);
@@ -196,6 +202,9 @@ export class StudioState {
       this.gridOffsetSec = res.grid_offset_sec;
       this.bpm = res.bpm;
       this.playback.duration_ms = Math.round(res.duration_sec * 1000);
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem("admx_last_audio_file", path);
+      }
       return res;
     } catch (e: any) {
       console.error("load_and_analyze failed:", e);
@@ -240,6 +249,19 @@ export class StudioState {
     this.connections = this.connections.filter((c) => c.id !== id);
   }
 
+  disconnectPin(nodeId: string, pinType: "in" | "out" | "all", pinIndex?: number) {
+    if (pinType === "in" || pinType === "all") {
+      this.connections = this.connections.filter(
+        (c) => !(c.to_node_id === nodeId && (pinIndex === undefined || c.to_pin === pinIndex))
+      );
+    }
+    if (pinType === "out" || pinType === "all") {
+      this.connections = this.connections.filter(
+        (c) => !(c.from_node_id === nodeId && (pinIndex === undefined || c.from_pin === pinIndex))
+      );
+    }
+  }
+
   removeNode(id: string) {
     this.nodes = this.nodes.filter((n) => n.id !== id);
     this.connections = this.connections.filter(
@@ -250,13 +272,212 @@ export class StudioState {
     }
   }
 
+  splitNodeAtBar(nodeId: string, splitBar: number): SongSection | null {
+    const idx = this.nodes.findIndex((n) => n.id === nodeId);
+    if (idx === -1) return null;
+
+    const node = this.nodes[idx];
+    if (splitBar <= node.start_bar || splitBar >= node.end_bar) {
+      return null;
+    }
+
+    const totalBars = node.bars > 0 ? node.bars : node.end_bar - node.start_bar;
+    const barRatio = (splitBar - node.start_bar) / totalBars;
+    const splitTime = node.start_time + barRatio * (node.end_time - node.start_time);
+
+    const origEndBar = node.end_bar;
+    const origEndTime = node.end_time;
+    const origName = node.name.replace(/\s*\(Teil [A-Z0-9]+\)/g, "").replace(/\s*\(Bars \d+-\d+\)/g, "");
+
+    // Split events
+    const leftCliff = (node.cliffhangers || []).filter((c) => c.bar < splitBar);
+    const rightCliff = (node.cliffhangers || []).filter((c) => c.bar >= splitBar);
+    const leftHits = (node.cinematic_hits || []).filter((c) => c.bar < splitBar);
+    const rightHits = (node.cinematic_hits || []).filter((c) => c.bar >= splitBar);
+
+    // Update left node (Part A)
+    node.end_bar = splitBar;
+    node.bars = splitBar - node.start_bar;
+    node.end_time = splitTime;
+    node.cliffhangers = leftCliff;
+    node.cinematic_hits = leftHits;
+    node.name = `${origName} (Teil A)`;
+
+    // Create right node (Part B)
+    const newId = `node_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newNode: SongSection = {
+      ...JSON.parse(JSON.stringify(node)),
+      id: newId,
+      name: `${origName} (Teil B)`,
+      start_bar: splitBar,
+      end_bar: origEndBar,
+      bars: origEndBar - splitBar,
+      start_time: splitTime,
+      end_time: origEndTime,
+      cliffhangers: rightCliff,
+      cinematic_hits: rightHits,
+      x: node.x + 230,
+      y: node.y,
+    };
+
+    // Splice newNode right after node
+    this.nodes.splice(idx + 1, 0, newNode);
+
+    // Rewire connections:
+    // Outgoing connections from node on pin 0 (NEXT) move to newNode
+    for (const c of this.connections) {
+      if (c.from_node_id === node.id && c.from_pin === 0) {
+        c.from_node_id = newNode.id;
+      }
+    }
+
+    // Connect node -> newNode
+    this.addConnection(node.id, 0, newNode.id, 0);
+
+    this.selectedNodeId = newNode.id;
+    return newNode;
+  }
+
+  splitAtPlayhead(): SongSection | null {
+    if (this.nodes.length === 0) return null;
+    const curSec = this.playback.position_ms / 1000;
+    const barDuration = (60 / Math.max(20, this.bpm)) * 4;
+    const approxBar = (curSec - this.gridOffsetSec) / barDuration;
+
+    // Find node that contains this time or bar
+    let targetNode = this.nodes.find((n) => curSec >= n.start_time && curSec < n.end_time);
+    if (!targetNode && this.playback.active_phase_idx >= 0 && this.playback.active_phase_idx < this.nodes.length) {
+      targetNode = this.nodes[this.playback.active_phase_idx];
+    }
+    if (!targetNode) {
+      targetNode = this.nodes.find((n) => approxBar >= n.start_bar && approxBar <= n.end_bar);
+    }
+    if (!targetNode) return null;
+
+    let splitBar = Math.round(approxBar);
+    if (splitBar <= targetNode.start_bar) {
+      splitBar = targetNode.start_bar + 1;
+    }
+    if (splitBar >= targetNode.end_bar) {
+      splitBar = targetNode.end_bar - 1;
+    }
+
+    if (splitBar > targetNode.start_bar && splitBar < targetNode.end_bar) {
+      return this.splitNodeAtBar(targetNode.id, splitBar);
+    }
+    return null;
+  }
+
+  mergeWithNextNode(nodeId: string): boolean {
+    const idx = this.nodes.findIndex((n) => n.id === nodeId);
+    if (idx === -1 || idx >= this.nodes.length - 1) return false;
+
+    const nodeA = this.nodes[idx];
+    const nodeB = this.nodes[idx + 1];
+
+    // Combine bar boundaries
+    nodeA.end_bar = nodeB.end_bar;
+    nodeA.bars = nodeA.end_bar - nodeA.start_bar;
+    nodeA.end_time = nodeB.end_time;
+    nodeA.cliffhangers = [...(nodeA.cliffhangers || []), ...(nodeB.cliffhangers || [])];
+    nodeA.cinematic_hits = [...(nodeA.cinematic_hits || []), ...(nodeB.cinematic_hits || [])];
+
+    // Clean up name
+    nodeA.name = nodeA.name.replace(/\s*\(Teil [A-Z0-9]+\)/g, "");
+
+    // Rewire connections of nodeB to nodeA
+    for (const c of this.connections) {
+      if (c.from_node_id === nodeB.id) {
+        c.from_node_id = nodeA.id;
+      }
+      if (c.to_node_id === nodeB.id) {
+        c.to_node_id = nodeA.id;
+      }
+    }
+
+    // Remove any self connections nodeA -> nodeA
+    this.connections = this.connections.filter(
+      (c) => !(c.from_node_id === nodeA.id && c.to_node_id === nodeA.id)
+    );
+
+    // Remove nodeB
+    this.removeNode(nodeB.id);
+    this.selectedNodeId = nodeA.id;
+    return true;
+  }
+
+  insertNodeAfter(fromNodeId: string, template: any): SongSection {
+    const idx = this.nodes.findIndex((n) => n.id === fromNodeId);
+    const fromNode = idx !== -1 ? this.nodes[idx] : this.nodes[this.nodes.length - 1];
+
+    const newX = fromNode ? fromNode.x + 240 : 60;
+    const newY = fromNode ? fromNode.y : 120;
+    const startBar = fromNode ? fromNode.end_bar : 0;
+    const endBar = startBar + template.bars;
+    const barSec = (60 / Math.max(20, this.bpm)) * 4;
+    const startTime = this.gridOffsetSec + startBar * barSec;
+    const endTime = this.gridOffsetSec + endBar * barSec;
+
+    const newSection: SongSection = {
+      id: `custom_node_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: `${template.name}`,
+      section_type: "CUSTOM",
+      start_bar: startBar,
+      end_bar: endBar,
+      bars: template.bars,
+      start_time: startTime,
+      end_time: endTime,
+      color: template.color,
+      pattern: template.pattern,
+      speed: template.speed,
+      amp: template.amp,
+      strobe: template.strobe,
+      flame: template.flame,
+      dim: template.dim,
+      ausklang_mode: "NATURAL_EXPONENTIAL",
+      decay_tau_ms: template.tau,
+      has_ausklang: template.tau > 200,
+      cliffhangers: [],
+      cinematic_hits: [],
+      x: newX,
+      y: newY,
+      w: 190,
+      h: 120,
+    };
+
+    if (fromNode) {
+      // Shift downstream nodes to the right so they don't overlap
+      for (let i = idx + 1; i < this.nodes.length; i++) {
+        this.nodes[i].x += 240;
+      }
+
+      // Splice in new node right after fromNode
+      this.nodes.splice(idx + 1, 0, newSection);
+
+      // Re-route outgoing NEXT connections of fromNode to newSection
+      for (const c of this.connections) {
+        if (c.from_node_id === fromNode.id && c.from_pin === 0) {
+          c.from_node_id = newSection.id;
+        }
+      }
+
+      // Connect fromNode -> newSection
+      this.addConnection(fromNode.id, 0, newSection.id, 0);
+    } else {
+      this.nodes.push(newSection);
+    }
+
+    this.selectedNodeId = newSection.id;
+    return newSection;
+  }
+
   async saveProfileToDb() {
     return await invoke<[string, number]>("save_profile", {
       dbPath: this.dbPath,
       slotIndex: this.slotIndex,
       nodes: this.nodes,
       connections: this.connections,
-      confidence: this.optimizationOutcome?.final_fitness ?? 0.95,
+      confidence: this.optimizationOutcome?.final_fitness ?? 0.0,
       passes: this.optimizationOutcome?.total_passes ?? 0,
     });
   }

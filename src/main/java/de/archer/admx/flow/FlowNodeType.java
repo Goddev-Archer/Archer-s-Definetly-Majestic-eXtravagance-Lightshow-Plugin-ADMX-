@@ -55,6 +55,12 @@ public enum FlowNodeType {
             Material.OBSIDIAN,
             NamedTextColor.DARK_GRAY,
             "Schaltet alle Geräte schlagartig auf Dunkelheit für dramatische Drops."
+    ),
+    COMPOSITE_CUE(
+            "Composite Cue",
+            Material.NETHER_STAR,
+            NamedTextColor.LIGHT_PURPLE,
+            "Kombinierter Mehrkanal-Szenenbaustein mit Bewegungsmuster, Dimmer, Speed und Strobe."
     );
 
     private final String displayName;

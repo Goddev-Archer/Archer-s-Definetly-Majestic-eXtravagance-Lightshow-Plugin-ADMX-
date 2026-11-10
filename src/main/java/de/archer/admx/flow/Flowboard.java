@@ -21,7 +21,7 @@ public final class Flowboard {
 
     public static final int CANVAS_SLOTS = 36;
     public static final int MIN_SHOW_DURATION_TICKS = 40;   // 2 Sekunden
-    public static final int MAX_SHOW_DURATION_TICKS = 2400; // 120 Sekunden (2 Minuten)
+    public static final int MAX_SHOW_DURATION_TICKS = 72000; // 3600 Sekunden (60 Minuten)
     public static final int DEFAULT_DURATION_TICKS = 400;   // 20 Sekunden
 
     private static final Gson GSON = new GsonBuilder().create();
@@ -110,19 +110,23 @@ public final class Flowboard {
     }
 
     public synchronized boolean putNode(FlowNode node) {
-        if (node.slot() < 0 || node.slot() >= CANVAS_SLOTS) {
+        if (node.slot() < 0) {
             return false;
         }
-        Integer existingAtSlot = nodeIdBySlot.get(node.slot());
-        if (existingAtSlot != null && existingAtSlot != node.nodeId()) {
-            return false;
+        if (node.slot() < CANVAS_SLOTS) {
+            Integer existingAtSlot = nodeIdBySlot.get(node.slot());
+            if (existingAtSlot != null && existingAtSlot != node.nodeId()) {
+                return false;
+            }
         }
 
         FlowNode old = nodesById.put(node.nodeId(), node);
         if (old != null && old.slot() != node.slot()) {
             nodeIdBySlot.remove(old.slot());
         }
-        nodeIdBySlot.put(node.slot(), node.nodeId());
+        if (node.slot() < CANVAS_SLOTS) {
+            nodeIdBySlot.put(node.slot(), node.nodeId());
+        }
         if (node.nodeId() >= nextNodeIdCounter.get()) {
             nextNodeIdCounter.set(node.nodeId() + 1);
         }

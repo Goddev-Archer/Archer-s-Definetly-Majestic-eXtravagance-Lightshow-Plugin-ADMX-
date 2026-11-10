@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="de.archer.admx.render.geom.TextDisplayTriangleTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-08T15:23:53.699Z" hostname="DESKTOP-0001" time="0.094">
+<testsuite name="de.archer.admx.render.geom.TextDisplayTriangleTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-08T22:28:14.366Z" hostname="DESKTOP-0001" time="0.069">
   <properties/>
   <testcase name="testExactMinecraftClientVerticesMatchTriangleCorners()" classname="de.archer.admx.render.geom.TextDisplayTriangleTest" time="0.002"/>
   <testcase name="testUnitTriangleCreation()" classname="de.archer.admx.render.geom.TextDisplayTriangleTest" time="0.0"/>
-  <testcase name="testLaserFanGeometry()" classname="de.archer.admx.render.geom.TextDisplayTriangleTest" time="0.09"/>
+  <testcase name="testLaserFanGeometry()" classname="de.archer.admx.render.geom.TextDisplayTriangleTest" time="0.065"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

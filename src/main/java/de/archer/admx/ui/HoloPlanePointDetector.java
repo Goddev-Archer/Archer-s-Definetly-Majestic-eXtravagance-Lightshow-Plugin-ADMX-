@@ -1,6 +1,7 @@
 package de.archer.admx.ui;
 
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -32,8 +33,17 @@ public final class HoloPlanePointDetector {
         float oy = (float) displayOrigin.getY();
         float oz = (float) displayOrigin.getZ();
 
+        if (displayOrigin == null || !displayOrigin.isWorldLoaded()) {
+            return;
+        }
+
+        World originWorld = displayOrigin.getWorld();
+        if (originWorld == null) {
+            return;
+        }
+
         for (Player player : players) {
-            if (!player.getWorld().equals(displayOrigin.getWorld())) {
+            if (!player.getWorld().equals(originWorld)) {
                 continue;
             }
             Location eye = player.getEyeLocation();

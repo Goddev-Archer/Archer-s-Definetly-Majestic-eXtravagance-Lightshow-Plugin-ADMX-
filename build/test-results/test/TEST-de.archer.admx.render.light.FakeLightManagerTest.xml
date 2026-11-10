@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="de.archer.admx.render.light.FakeLightManagerTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-08T15:23:53.795Z" hostname="DESKTOP-0001" time="0.007">
+<testsuite name="de.archer.admx.render.light.FakeLightManagerTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-08T22:28:14.436Z" hostname="DESKTOP-0001" time="0.005">
   <properties/>
   <testcase name="testBlockPosEqualityAndConversion()" classname="de.archer.admx.render.light.FakeLightManagerTest" time="0.003"/>
-  <testcase name="testInitialManagerEmpty()" classname="de.archer.admx.render.light.FakeLightManagerTest" time="0.002"/>
+  <testcase name="testInitialManagerEmpty()" classname="de.archer.admx.render.light.FakeLightManagerTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

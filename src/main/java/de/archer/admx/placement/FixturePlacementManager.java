@@ -910,8 +910,13 @@ public final class FixturePlacementManager implements Listener {
             ConsoleModelType[] types = ConsoleModelType.values();
             int idx = slot - 28;
             if (idx >= 0 && idx < types.length) {
+                Location cLoc = pending.location();
+                if (cLoc == null || !cLoc.isWorldLoaded()) {
+                    player.closeInventory();
+                    return;
+                }
                 ConsoleModelType selectedConsole = types[idx];
-                String limitErr = plugin.checkConsolePlacementLimits(pending.location().getWorld());
+                String limitErr = plugin.checkConsolePlacementLimits(cLoc.getWorld());
                 if (limitErr != null) {
                     player.closeInventory();
                     player.sendMessage(Component.text("✘ " + limitErr, NamedTextColor.RED));
@@ -960,7 +965,12 @@ public final class FixturePlacementManager implements Listener {
                 player.sendMessage(Component.text("✘ Keine Berechtigung zum Platzieren von Geräten (admx.place).", NamedTextColor.RED));
                 return;
             }
-            String limitError = plugin.checkPlacementLimits(pending.location().getWorld(), selectedType);
+            Location fLoc = pending.location();
+            if (fLoc == null || !fLoc.isWorldLoaded()) {
+                player.closeInventory();
+                return;
+            }
+            String limitError = plugin.checkPlacementLimits(fLoc.getWorld(), selectedType);
             if (limitError != null) {
                 player.closeInventory();
                 player.sendMessage(Component.text("✘ " + limitError, NamedTextColor.RED));

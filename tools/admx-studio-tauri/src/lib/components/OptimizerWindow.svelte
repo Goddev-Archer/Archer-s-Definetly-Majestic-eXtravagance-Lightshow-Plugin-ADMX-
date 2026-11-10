@@ -110,12 +110,29 @@
 
       <div class="field-row">
         <label for="db-path">SQLite Pfad:</label>
-        <input
-          id="db-path"
-          type="text"
-          class="text-input"
-          bind:value={studio.dbPath}
-        />
+        <div class="db-path-col">
+          <input
+            id="db-path"
+            type="text"
+            class="text-input"
+            bind:value={studio.dbPath}
+            placeholder="plugins/ADMX/admx.db"
+          />
+          <div class="path-presets">
+            <button
+              class="mini-preset-btn {studio.dbPath === 'plugins/ADMX/admx.db' ? 'active' : ''}"
+              onclick={() => (studio.dbPath = 'plugins/ADMX/admx.db')}
+            >
+              plugins/ADMX/admx.db
+            </button>
+            <button
+              class="mini-preset-btn {studio.dbPath === 'run/plugins/ADMX/admx.db' ? 'active' : ''}"
+              onclick={() => (studio.dbPath = 'run/plugins/ADMX/admx.db')}
+            >
+              run/plugins/ADMX/admx.db
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="field-row">
@@ -329,6 +346,42 @@
   .field-row input,
   .field-row select {
     flex: 1;
+  }
+
+  .db-path-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .path-presets {
+    display: flex;
+    gap: 6px;
+  }
+
+  .mini-preset-btn {
+    background: #1b1e22;
+    border: 1px solid #2d3339;
+    border-radius: 3px;
+    color: #8c939d;
+    font-size: 9.5px;
+    font-family: 'Consolas', monospace;
+    padding: 2px 6px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+
+  .mini-preset-btn:hover {
+    background: #252a30;
+    color: #eff0f1;
+    border-color: #3daee9;
+  }
+
+  .mini-preset-btn.active {
+    background: #1e3a5f;
+    color: #38bdf8;
+    border-color: #3daee9;
   }
 
   .btn-save {

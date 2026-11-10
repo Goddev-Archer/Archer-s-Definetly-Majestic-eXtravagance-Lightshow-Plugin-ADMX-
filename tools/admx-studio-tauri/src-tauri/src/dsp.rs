@@ -438,67 +438,87 @@ pub fn analyze_track(file_path: &str, manual_bpm: Option<f64>) -> Result<Analysi
         "MELODIC_EDM".to_string()
     };
 
-    // Definitionen der Baustein-Templates je nach Genre
-    let acoustic_templates: [(f64, f64, &str, &str, &str, &str, f32, f32, f32, bool, u32, u32); 8] = [
-        (0.00, 0.14, "ACOUSTIC_INTRO", "01. Acoustic Guitar Intro", "#f59e0b", "GENTLE_FAN_SWAY", 0.75, 0.65, 0.0, false, 80, 380),
-        (0.14, 0.28, "VOCAL_VERSE", "02. Vocal Halo Verse 1", "#fff3e0", "BREATHING_CENTER_GLOW", 0.60, 0.50, 0.0, false, 75, 520),
-        (0.28, 0.42, "TRAP_BUILDUP", "03. Hi-Hat Triplet Buildup", "#00e5ff", "NEEDLE_RACE_STACCATO", 1.40, 0.75, 3.5, false, 90, 180),
-        (0.42, 0.56, "SUB_808_DROP", "04. 808 Sub-Bass Pulse Hook", "#8b5cf6", "FLOOR_PUNCH_BREATHE", 1.10, 1.00, 0.0, true, 100, 450),
-        (0.56, 0.70, "CHORUS_BLOOM", "05. Melodic Chorus Bloom", "#ec4899", "WIDE_ORBITAL_SUNSET", 0.80, 1.20, 0.0, false, 95, 340),
-        (0.70, 0.82, "VOCAL_VERSE", "06. Vocal Verse 2 & Strums", "#f59e0b", "BREATHING_CENTER_GLOW", 0.65, 0.55, 0.0, false, 80, 460),
-        (0.82, 0.94, "CLIMAX_HOOK", "07. Climax Double Chorus", "#06b6d4", "WIDE_ORBITAL_SUNSET", 0.95, 1.30, 2.0, true, 100, 280),
-        (0.94, 1.00, "LOFI_OUTRO", "08. Lo-Fi Vinyl Outro Fade", "#eab308", "CANDLE_FLICKER_STATIC", 0.40, 0.40, 0.0, false, 40, 600),
-    ];
+    // 8. Echte algorithmische Phasen- und Struktursegmentierung basierend auf der Audioanalyse
+    let mut bar_metrics: Vec<(f32, f32, f32, f32)> = Vec::with_capacity(total_bars); // (energy, kick, high, decay)
+    for b in 0..total_bars {
+        let b_start_sec = grid_offset_sec + b as f64 * bar_sec;
+        let b_end_sec = grid_offset_sec + (b + 1) as f64 * bar_sec;
+        let f_start = ((b_start_sec / hop_sec) as usize).min(n_frames);
+        let f_end = ((b_end_sec / hop_sec) as usize).min(n_frames).max(f_start + 1);
 
-    let techno_templates: [(f64, f64, &str, &str, &str, &str, f32, f32, f32, bool, u32, u32); 16] = [
-        (0.00, 0.04, "INTRO", "01. Intro Stomp & Rap", "#fab62d", "FAN_SPREAD", 0.90, 0.65, 0.0, false, 85, 240),
-        (0.04, 0.12, "VERSE_GROOVE", "02. Verse Rap Groove 1", "#2dd4eb", "PAN_SWEEP", 0.95, 0.60, 0.0, false, 90, 200),
-        (0.12, 0.16, "CINEMATIC_DRUMS", "03. Cinematic Stomp Intro", "#a55eea", "CINEMATIC_STOMP_SNAP", 1.20, 0.95, 3.0, true, 100, 280),
-        (0.16, 0.35, "VERSE_GROOVE", "04. Verse Rap Main Groove", "#2dd4eb", "PAN_SWEEP", 0.95, 0.60, 0.0, false, 90, 200),
-        (0.35, 0.38, "BUILDUP", "05. Snare Riser Buildup 1", "#e67e22", "TILT_WAVE", 1.35, 0.85, 6.0, false, 95, 160),
-        (0.38, 0.40, "CLIFFHANGER_PRE_DROP", "06. Cliffhanger (Kick-Cut)", "#ff4757", "CLIFFHANGER_FREEZE", 0.0, 0.0, 0.0, false, 15, 260),
-        (0.40, 0.50, "PEAK_DROP", "07. Bass Drop 1 (Schranz Snap)", "#eb3b5a", "HARD_SNAP_STACCATO", 1.50, 1.00, 10.0, true, 100, 120),
-        (0.50, 0.58, "PEAK_DROP", "08. Anthem Chorus Drop", "#eb3b5a", "HARD_SNAP_STACCATO", 1.50, 1.00, 10.0, true, 100, 120),
-        (0.58, 0.65, "CINEMATIC_DRUMS", "09. Cinematic Stomps Breakdown", "#a55eea", "CINEMATIC_STOMP_SNAP", 1.20, 0.95, 3.0, true, 100, 280),
-        (0.65, 0.72, "VERSE_GROOVE", "10. Vocal Groove & Chords", "#2dd4eb", "PAN_SWEEP", 0.95, 0.60, 0.0, false, 90, 200),
-        (0.72, 0.78, "CINEMATIC_DRUMS", "11. Cinematic Drums Breakdown 2", "#a55eea", "CINEMATIC_STOMP_SNAP", 1.20, 0.95, 3.0, true, 100, 280),
-        (0.78, 0.84, "BREAKDOWN", "12. Atmospheric Vocal Bridge", "#3498db", "TILT_WAVE", 0.50, 0.40, 0.0, false, 70, 340),
-        (0.84, 0.87, "BUILDUP", "13. Climax Snare Riser 2", "#e67e22", "TILT_WAVE", 1.35, 0.85, 6.0, false, 95, 160),
-        (0.87, 0.88, "CLIFFHANGER_PRE_DROP", "14. Cliffhanger Pre-Drop 2", "#ff4757", "CLIFFHANGER_FREEZE", 0.0, 0.0, 0.0, false, 15, 260),
-        (0.88, 0.95, "PEAK_DROP", "15. Bass Drop 2 (Maximum Climax)", "#eb3b5a", "HARD_SNAP_STACCATO", 1.50, 1.00, 10.0, true, 100, 120),
-        (0.95, 1.00, "OUTRO", "16. Outro Sweep & Fade", "#f39c12", "FIGURE_8", 0.85, 0.50, 0.0, false, 75, 350),
-    ];
+        let e_slice = &ar[f_start..f_end];
+        let h_slice = &hr[f_start..f_end];
+        let d_slice = &decay_env[f_start..f_end];
 
-    let section_templates: Vec<(f64, f64, &str, &str, &str, &str, f32, f32, f32, bool, u32, u32)> = if genre == "ACOUSTIC_TRAP" {
-        acoustic_templates.to_vec()
-    } else {
-        techno_templates.to_vec()
-    };
+        let m_e = if !e_slice.is_empty() { e_slice.iter().sum::<f32>() / e_slice.len() as f32 } else { 0.0 };
+        let m_h = if !h_slice.is_empty() { h_slice.iter().sum::<f32>() / h_slice.len() as f32 } else { 0.0 };
+        let m_d = if !d_slice.is_empty() { d_slice.iter().sum::<f32>() / d_slice.len() as f32 } else { 0.0 };
 
-    let mut nodes = Vec::new();
-    let num_templates = section_templates.len();
-    let mut current_bar = 0;
-
-    for (i, (_r_start, r_end, p_type, name, color, pattern, spd, amp, strobe, flame, dim, tau)) in section_templates.into_iter().enumerate() {
-        let b_start = if i == 0 { 0 } else { current_bar };
-        let mut b_end = if i == num_templates - 1 {
-            total_bars
+        let beat_s = b * 4;
+        let beat_e = (beat_s + 4).min(beat_k_att.len());
+        let m_k = if beat_s < beat_e {
+            beat_k_att[beat_s..beat_e].iter().sum::<f32>() / (beat_e - beat_s) as f32
         } else {
-            ((r_end * total_bars as f64).round() as usize).min(total_bars)
+            0.0
         };
 
-        if b_end <= b_start && b_start < total_bars {
-            b_end = (b_start + 1).min(total_bars);
-        }
+        bar_metrics.push((m_e, m_k, m_h, m_d));
+    }
 
-        if b_start >= total_bars || b_end <= b_start {
+    // Finde Schnittpunkte (Taktgrenzen) anhand von:
+    // 1. Cliffhanger Drops (Kick-Cuts)
+    // 2. Markanten Energiesprüngen (|E[b] - E[b-1]| > threshold)
+    // 3. Phrasen-Rhythmik (4- oder 8-Takt-Raster)
+    let mut boundary_set = std::collections::BTreeSet::new();
+    boundary_set.insert(0);
+    boundary_set.insert(total_bars);
+
+    // Füge Cliffhanger als präzise Cut-Grenzen ein
+    for c in &cliffhangers {
+        if c.bar > 1 && c.bar < total_bars {
+            boundary_set.insert(c.bar - 1); // Start des Cuts
+            boundary_set.insert(c.bar);     // Start des anschließenden Drops
+        }
+    }
+
+    let mean_total_energy = if !ar.is_empty() { ar.iter().sum::<f32>() / ar.len() as f32 } else { 0.5 };
+    let flux_threshold = (mean_total_energy * 0.35).clamp(0.06, 0.30);
+
+    let mut last_boundary = 0;
+    for b in 2..total_bars {
+        let (e_curr, k_curr, _, _) = bar_metrics[b];
+        let (e_prev, k_prev, _, _) = bar_metrics[b - 1];
+        let d_energy = (e_curr - e_prev).abs();
+        let d_kick = (k_curr - k_prev).abs();
+
+        let is_musical_grid = (b % 4 == 0) || (b % 8 == 0) || (b % 2 == 0 && (d_energy > flux_threshold * 1.4));
+        let bars_since_last = b - last_boundary;
+
+        if is_musical_grid && bars_since_last >= 2 {
+            if d_energy >= flux_threshold || d_kick >= 0.35 || bars_since_last >= 16 {
+                boundary_set.insert(b);
+                last_boundary = b;
+            }
+        }
+    }
+
+    let boundaries: Vec<usize> = boundary_set.into_iter().collect();
+    let num_sections = boundaries.len().saturating_sub(1);
+    let mut nodes: Vec<SongSection> = Vec::with_capacity(num_sections);
+
+    for i in 0..num_sections {
+        let b_start = boundaries[i];
+        let b_end = boundaries[i + 1];
+        let bars = b_end.saturating_sub(b_start);
+        if bars == 0 {
             continue;
         }
 
-        current_bar = b_end;
-        let bars = b_end.saturating_sub(b_start);
-        let st = if i == 0 { 0.0 } else { (grid_offset_sec + b_start as f64 * bar_sec).min(duration_sec) };
-        let et = if i == num_templates - 1 { duration_sec } else { (grid_offset_sec + b_end as f64 * bar_sec).min(duration_sec) };
+        let slice = &bar_metrics[b_start..b_end];
+        let sec_e = if !slice.is_empty() { slice.iter().map(|m| m.0).sum::<f32>() / slice.len() as f32 } else { 0.3 };
+        let sec_k = if !slice.is_empty() { slice.iter().map(|m| m.1).sum::<f32>() / slice.len() as f32 } else { 0.2 };
+        let sec_h = if !slice.is_empty() { slice.iter().map(|m| m.2).sum::<f32>() / slice.len() as f32 } else { 0.1 };
+        let sec_d = if !slice.is_empty() { slice.iter().map(|m| m.3).sum::<f32>() / slice.len() as f32 } else { 0.2 };
 
         let phase_cliffs: Vec<CliffhangerHit> = cliffhangers.iter().filter(|c| c.bar >= b_start + 1 && c.bar <= b_end).cloned().collect();
         let phase_hits: Vec<CinematicHit> = cinematic_hits.iter().filter(|h| h.bar >= b_start + 1 && h.bar <= b_end).cloned().collect();
@@ -506,24 +526,134 @@ pub fn analyze_track(file_path: &str, manual_bpm: Option<f64>) -> Result<Analysi
         let b_s = (b_start * 4).min(beat_ausklang.len().saturating_sub(1));
         let b_e = (b_end * 4).min(beat_ausklang.len());
         let has_ausk = if b_s < b_e {
-            beat_ausklang[b_s..b_e].iter().any(|&x| x) || !phase_hits.is_empty() || p_type.contains("BREAKDOWN") || p_type.contains("ACOUSTIC")
+            beat_ausklang[b_s..b_e].iter().any(|&x| x) || !phase_hits.is_empty()
         } else {
             false
         };
 
-        let (coords_x, coords_y) = if num_templates <= 8 {
-            (50.0 + (i as f64) * 260.0, 120.0)
+        let st = if i == 0 { 0.0 } else { (grid_offset_sec + b_start as f64 * bar_sec).min(duration_sec) };
+        let et = if i == num_sections - 1 { duration_sec } else { (grid_offset_sec + b_end as f64 * bar_sec).min(duration_sec) };
+
+        let has_cliff = !phase_cliffs.is_empty();
+        let prev_e = if i > 0 { nodes[i - 1].dim as f32 / 100.0 } else { 0.0 };
+
+        let (p_type, title, color, pattern, spd, amp, strobe, flame, dim, tau, ausk_mode) = if has_cliff || (sec_k < 0.12 && sec_e < 0.22 && bars <= 2 && prev_e > 0.50) {
+            (
+                "CLIFFHANGER_PRE_DROP",
+                "Cliffhanger (Kick-Cut Freeze)",
+                "#ff4757",
+                "CLIFFHANGER_FREEZE",
+                0.0f32,
+                0.0f32,
+                0.0f32,
+                false,
+                15u32,
+                260u32,
+                "HARD_CUT",
+            )
+        } else if b_start == 0 && sec_e < 0.48 {
+            (
+                "INTRO",
+                if genre == "ACOUSTIC_TRAP" { "Acoustic Intro" } else { "Intro Atmosphere" },
+                "#f59e0b",
+                if genre == "ACOUSTIC_TRAP" { "GENTLE_FAN_SWAY" } else { "FAN_SPREAD" },
+                0.75f32,
+                0.65f32,
+                0.0f32,
+                false,
+                (sec_e * 100.0).clamp(35.0, 80.0) as u32,
+                (sec_d * 700.0).clamp(200.0, 500.0) as u32,
+                "NATURAL_EXPONENTIAL",
+            )
+        } else if b_end == total_bars && sec_e < 0.45 {
+            (
+                "OUTRO",
+                if genre == "ACOUSTIC_TRAP" { "Lo-Fi Outro Fade" } else { "Outro Sweep & Fade" },
+                "#eab308",
+                if genre == "ACOUSTIC_TRAP" { "CANDLE_FLICKER_STATIC" } else { "FIGURE_8" },
+                0.60f32,
+                0.50f32,
+                0.0f32,
+                false,
+                (sec_e * 100.0).clamp(25.0, 70.0) as u32,
+                (sec_d * 750.0).clamp(250.0, 600.0) as u32,
+                "SMOOTH_DECAY_FADE",
+            )
+        } else if sec_h > 0.32 && sec_e > prev_e && sec_k < 0.55 && bars <= 6 {
+            (
+                "BUILDUP",
+                "Snare Riser Buildup",
+                "#e67e22",
+                "TILT_WAVE",
+                1.35f32,
+                0.85f32,
+                ((sec_h - 0.28) * 12.0).clamp(2.0, 6.0),
+                false,
+                (sec_e * 110.0).clamp(70.0, 95.0) as u32,
+                160u32,
+                "EXPONENTIAL_TAIL",
+            )
+        } else if sec_e > 0.58 || sec_k > 0.45 {
+            let is_chill_sub = genre == "ACOUSTIC_TRAP";
+            (
+                "PEAK_DROP",
+                if is_chill_sub { "808 Sub-Bass Drop Hook" } else { "Peak Drop Snap" },
+                if is_chill_sub { "#8b5cf6" } else { "#eb3b5a" },
+                if is_chill_sub {
+                    if sec_d > 0.15 { "FLOOR_PUNCH_BREATHE" } else { "WIDE_ORBITAL_SUNSET" }
+                } else {
+                    "HARD_SNAP_STACCATO"
+                },
+                (1.0 + sec_k * 0.5).clamp(0.9, 1.6),
+                1.0f32,
+                if sec_h > 0.40 && sec_e > 0.70 { 8.0f32 } else { 0.0f32 },
+                true,
+                (sec_e * 115.0).clamp(85.0, 100.0) as u32,
+                (sec_d * 500.0).clamp(90.0, 350.0) as u32,
+                "STACCATO_SNAP",
+            )
+        } else if sec_e < 0.35 && prev_e > 0.65 {
+            (
+                "BREAKDOWN",
+                "Atmospheric Breakdown",
+                "#3498db",
+                if genre == "ACOUSTIC_TRAP" { "BREATHING_CENTER_GLOW" } else { "TILT_WAVE" },
+                0.55f32,
+                0.45f32,
+                0.0f32,
+                false,
+                (sec_e * 100.0).clamp(40.0, 70.0) as u32,
+                (sec_d * 600.0).clamp(200.0, 480.0) as u32,
+                "SMOOTH_DECAY_FADE",
+            )
         } else {
-            let per_row = 4;
-            let node_row = i / per_row;
-            let col_in_row = i % per_row;
-            let node_col = if node_row % 2 == 0 { col_in_row } else { per_row - 1 - col_in_row };
-            (60.0 + (node_col as f64) * 250.0, 80.0 + (node_row as f64) * 180.0)
+            (
+                "VERSE_GROOVE",
+                if genre == "ACOUSTIC_TRAP" { "Vocal Verse & Melodic Strums" } else { "Verse Rap Main Groove" },
+                "#2dd4eb",
+                "PAN_SWEEP",
+                0.95f32,
+                0.70f32,
+                0.0f32,
+                false,
+                (sec_e * 100.0).clamp(55.0, 85.0) as u32,
+                (sec_d * 500.0).clamp(150.0, 350.0) as u32,
+                "SMOOTH_DECAY_FADE",
+            )
         };
+
+        let per_row = 4;
+        let node_row = i / per_row;
+        let col_in_row = i % per_row;
+        let node_col = if node_row % 2 == 0 { col_in_row } else { per_row - 1 - col_in_row };
+        let coords_x = 60.0 + (node_col as f64) * 260.0;
+        let coords_y = 80.0 + (node_row as f64) * 180.0;
+
+        let name = format!("{:02}. {} (Bars {}-{})", i + 1, title, b_start + 1, b_end);
 
         nodes.push(SongSection {
             id: format!("phase_{:02}", i + 1),
-            name: name.to_string(),
+            name,
             section_type: p_type.to_string(),
             start_bar: b_start,
             end_bar: b_end,
@@ -537,15 +667,7 @@ pub fn analyze_track(file_path: &str, manual_bpm: Option<f64>) -> Result<Analysi
             strobe,
             flame,
             dim,
-            ausklang_mode: if p_type.contains("DROP") || p_type == "PEAK_DROP" {
-                "STACCATO_SNAP".into()
-            } else if p_type.contains("BUILDUP") {
-                "EXPONENTIAL_TAIL".into()
-            } else if p_type.contains("LOFI") || p_type.contains("ACOUSTIC") {
-                "NATURAL_EXPONENTIAL".into()
-            } else {
-                "SMOOTH_DECAY_FADE".into()
-            },
+            ausklang_mode: ausk_mode.to_string(),
             decay_tau_ms: tau,
             has_ausklang: has_ausk,
             cliffhangers: phase_cliffs,

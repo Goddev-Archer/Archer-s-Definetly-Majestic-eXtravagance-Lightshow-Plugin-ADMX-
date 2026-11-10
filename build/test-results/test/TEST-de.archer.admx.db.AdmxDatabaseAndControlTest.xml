@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="de.archer.admx.db.AdmxDatabaseAndControlTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-08T15:23:53.185Z" hostname="DESKTOP-0001" time="0.237">
+<testsuite name="de.archer.admx.db.AdmxDatabaseAndControlTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-08T22:28:13.879Z" hostname="DESKTOP-0001" time="0.224">
   <properties/>
-  <testcase name="testUniqueMemberPhaseFanningAndSceneSequencer()" classname="de.archer.admx.db.AdmxDatabaseAndControlTest" time="0.017"/>
-  <testcase name="testSqliteWalDatabaseGroupsAndSceneCuesIntegrity()" classname="de.archer.admx.db.AdmxDatabaseAndControlTest" time="0.204"/>
-  <testcase name="testSecurityAuditFixesCrcLocaleAndSnapshotValidation()" classname="de.archer.admx.db.AdmxDatabaseAndControlTest" time="0.009"/>
+  <testcase name="testUniqueMemberPhaseFanningAndSceneSequencer()" classname="de.archer.admx.db.AdmxDatabaseAndControlTest" time="0.014"/>
+  <testcase name="testSqliteWalDatabaseGroupsAndSceneCuesIntegrity()" classname="de.archer.admx.db.AdmxDatabaseAndControlTest" time="0.201"/>
+  <testcase name="testSecurityAuditFixesCrcLocaleAndSnapshotValidation()" classname="de.archer.admx.db.AdmxDatabaseAndControlTest" time="0.004"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[SLF4J(W): No SLF4J providers were found.
 SLF4J(W): Defaulting to no-operation (NOP) logger implementation

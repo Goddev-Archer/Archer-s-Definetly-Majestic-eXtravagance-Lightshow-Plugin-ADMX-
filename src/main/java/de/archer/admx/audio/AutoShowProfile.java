@@ -278,7 +278,7 @@ public final class AutoShowProfile {
                 190f, 315f, 0.92f,
                 MovementPattern.TILT_WAVE, MovementPattern.FIGURE_8, MovementPattern.FAN_SPREAD, MovementPattern.CIRCLE,
                 1.25f, 0.90f, 0.75f, 9.0f, true, true,
-                256, 2, 4, 0.95f
+                0, 0, 0, 0.0f
         ));
         defaults.add(new AutoShowProfile(
                 "show_02", "Festival Mainstage Drop", 1, MusicGenre.HOUSE_CLUB, ChoreoStyle.FESTIVAL_MAINSTAGE,
@@ -286,7 +286,7 @@ public final class AutoShowProfile {
                 15f, 52f, 0.88f,
                 MovementPattern.TILT_WAVE, MovementPattern.PAN_SWEEP, MovementPattern.FAN_SPREAD, MovementPattern.FAN_SPREAD,
                 1.15f, 0.95f, 0.85f, 10.0f, true, true,
-                192, 2, 3, 0.92f
+                0, 0, 0, 0.0f
         ));
         defaults.add(new AutoShowProfile(
                 "show_03", "Deep Warehouse Techno", 2, MusicGenre.TECHNO, ChoreoStyle.DEEP_WAREHOUSE,
@@ -294,7 +294,7 @@ public final class AutoShowProfile {
                 230f, 0f, 0.95f,
                 MovementPattern.TILT_WAVE, MovementPattern.TILT_WAVE, MovementPattern.PAN_SWEEP, MovementPattern.PAN_SWEEP,
                 1.10f, 0.80f, 0.60f, 8.0f, true, false,
-                320, 3, 5, 0.98f
+                0, 0, 0, 0.0f
         ));
         defaults.add(new AutoShowProfile(
                 "show_04", "Warm Sunset Club", 3, MusicGenre.HOUSE_CLUB, ChoreoStyle.SUNSET_GROOVE,
@@ -302,7 +302,7 @@ public final class AutoShowProfile {
                 28f, 340f, 0.85f,
                 MovementPattern.TILT_WAVE, MovementPattern.TILT_WAVE, MovementPattern.FAN_SPREAD, MovementPattern.FIGURE_8,
                 0.90f, 0.75f, 0.50f, 5.0f, true, false,
-                160, 1, 2, 0.88f
+                0, 0, 0, 0.0f
         ));
         defaults.add(new AutoShowProfile(
                 "show_05", "146 BPM Schranz Snap", 4, MusicGenre.TECHNO, ChoreoStyle.SCHRANZ_STACCATO,
@@ -310,7 +310,7 @@ public final class AutoShowProfile {
                 38f, 195f, 0.98f,
                 MovementPattern.TILT_WAVE, MovementPattern.PAN_SWEEP, MovementPattern.FAN_SPREAD, MovementPattern.HARD_SNAP_STACCATO,
                 1.50f, 1.00f, 0.90f, 10.0f, true, true,
-                384, 4, 8, 0.99f
+                0, 0, 0, 0.0f
         ));
         return defaults;
     }

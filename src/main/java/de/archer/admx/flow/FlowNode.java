@@ -18,10 +18,10 @@ public record FlowNode(
 ) {
     public static final String TARGET_ALL = "*";
     public static final int MIN_DURATION_TICKS = 5;
-    public static final int MAX_DURATION_TICKS = 1200; // 60 Sekunden pro Node
+    public static final int MAX_DURATION_TICKS = 72000; // Bis zu 60 Minuten (Show-Gesamtlaufzeit)
 
     public FlowNode {
-        slot = Math.clamp(slot, 0, 35);
+        slot = Math.max(0, slot);
         if (type == null) {
             type = FlowNodeType.DIMMER_PULSE;
         }

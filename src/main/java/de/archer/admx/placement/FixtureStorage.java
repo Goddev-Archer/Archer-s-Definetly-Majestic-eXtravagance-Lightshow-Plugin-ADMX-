@@ -95,6 +95,7 @@ public final class FixtureStorage {
     public void save(Map<UUID, AdmxPlugin.PlacedFixture> map) {
         List<StoredFixture> list = new ArrayList<>();
         for (AdmxPlugin.PlacedFixture f : map.values()) {
+            if (f.location() == null || !f.location().isWorldLoaded()) continue;
             World world = f.location().getWorld();
             if (world == null) continue;
 

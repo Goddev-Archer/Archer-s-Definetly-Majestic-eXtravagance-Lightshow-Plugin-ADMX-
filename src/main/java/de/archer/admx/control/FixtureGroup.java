@@ -601,6 +601,43 @@ public final class FixtureGroup {
                 calcPan = panDegrees + (stompPan[idx] * movementAmplitude) + (normalizedPos * 25f * phaseSpread);
                 calcTilt = tiltDegrees + (stompTilt[idx] * movementAmplitude);
             }
+            case GENTLE_FAN_SWAY -> {
+                // Sanfter Fächer-Sway: Breiter Fächer mit beruhigender horizontaler & vertikaler Schwingung
+                float fanAngle = normalizedPos * (80f * phaseSpread);
+                calcPan = panDegrees + fanAngle + (float) Math.sin(t * 0.7) * (25f * movementAmplitude);
+                calcTilt = tiltDegrees + (float) Math.cos(t * 0.7) * (12f * movementAmplitude);
+            }
+            case BREATHING_CENTER_GLOW -> {
+                // Atmender Center-Glow: Alle Köpfe zielen zentral und heben/senken sich langsam synchron
+                calcPan = panDegrees + (normalizedPos * 18f * phaseSpread);
+                calcTilt = tiltDegrees + (float) Math.sin(t * 0.5) * (22f * movementAmplitude);
+            }
+            case FLOOR_PUNCH_BREATHE -> {
+                // Floor-Punch Breathe: Nach unten gerichteter Tanzflächen-Punch mit rhythmischem Atem-Effekt
+                calcPan = panDegrees + (float) Math.sin(t * 1.2) * (30f * movementAmplitude);
+                calcTilt = -40f + (float) Math.cos(t * 1.2) * (18f * movementAmplitude);
+            }
+            case NEEDLE_RACE_STACCATO -> {
+                // Needle Race: Schnelle staccatoartige Sprünge über 8 diskrete Haltepositionen im Raum
+                int step = (int) Math.floor((t / twoPi) * 8.0) % 8;
+                float[] racePan = {-70f, -30f, 20f, 65f, 40f, -10f, -50f, 0f};
+                float[] raceTilt = {20f, -15f, 40f, 10f, -20f, 35f, -10f, 50f};
+                int idx = Math.abs((step + memberIndex) % racePan.length);
+                calcPan = panDegrees + (racePan[idx] * movementAmplitude) + (normalizedPos * 30f * phaseSpread);
+                calcTilt = tiltDegrees + (raceTilt[idx] * movementAmplitude);
+            }
+            case WIDE_ORBITAL_SUNSET -> {
+                // Weites Sunset-Orbital: Sanft kreisende, raumfüllende Lissajous-Achterbahn
+                calcPan = panDegrees + (float) Math.sin(t * 0.75) * (110f * movementAmplitude);
+                calcTilt = tiltDegrees + (float) Math.sin(t * 1.5) * (35f * movementAmplitude);
+            }
+            case CANDLE_FLICKER_STATIC -> {
+                // Kerzenflackern: Statische Ausrichtung mit organischem Mikrozittern
+                float microJitterPan = (float) (Math.sin(t * 4.3 + memberIndex) * 3.5 * movementAmplitude);
+                float microJitterTilt = (float) (Math.cos(t * 3.7 + memberIndex) * 2.5 * movementAmplitude);
+                calcPan = panDegrees + (normalizedPos * 35f * phaseSpread) + microJitterPan;
+                calcTilt = tiltDegrees + microJitterTilt;
+            }
         }
 
         // Strobe-Berechnung (nicht auf Nebelmaschinen anwenden, um Cache-Resets zu verhindern -> PERF-03)

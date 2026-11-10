@@ -48,13 +48,16 @@ public final class GenreClassifier {
         MusicGenre detectedGenre;
         float confidence;
 
-        // Breiter Techno-Bereich (126 - 168 BPM):
-        // Deckt sowohl klassischen Techno (130-140) als auch Hard Techno / Schranz (145-165 BPM wie Klangkuenstler) ab.
+        // Breiter Techno- / Melodic-Bereich (126 - 168 BPM):
         if (bpm >= 126.0 && bpm <= 168.0) {
-            if (effectiveRegularity >= 0.35) {
+            if (effectiveRegularity >= 0.65) {
                 // Eindeutiger 4-on-the-Floor Beat -> TECHNO / SCHRANZ
                 detectedGenre = MusicGenre.TECHNO;
                 confidence = (float) Math.clamp(0.85 + effectiveRegularity * 0.14, 0.80, 0.99);
+            } else if (effectiveRegularity >= 0.35) {
+                // Melodischer Beat / Future Bass / Melodic EDM
+                detectedGenre = MusicGenre.MELODIC_EDM;
+                confidence = (float) Math.clamp(0.80 + effectiveRegularity * 0.15, 0.75, 0.95);
             } else if (bpm >= 158.0) {
                 // Schneller Breakbeat bei 160+ BPM ohne 4-on-the-Floor -> Drum & Bass
                 detectedGenre = MusicGenre.DRUM_AND_BASS;
@@ -82,10 +85,15 @@ public final class GenreClassifier {
                 confidence = 0.72f;
             }
         } else {
-            // bpm < 115.0: Boom-Bap, Trap, Hip-Hop (65 - 110 BPM)
+            // bpm < 115.0: Trap, Acoustic Trap, Hip-Hop (65 - 110 BPM)
             if (energy > 0.05f) {
-                detectedGenre = MusicGenre.RAP_HIPHOP;
-                confidence = (float) Math.clamp(0.80 + (1.0 - effectiveRegularity) * 0.18, 0.72, 0.96);
+                if (energy < 0.38f || effectiveRegularity < 0.45) {
+                    detectedGenre = MusicGenre.ACOUSTIC_TRAP;
+                    confidence = (float) Math.clamp(0.82 + (1.0 - effectiveRegularity) * 0.16, 0.75, 0.96);
+                } else {
+                    detectedGenre = MusicGenre.RAP_HIPHOP;
+                    confidence = (float) Math.clamp(0.80 + (1.0 - effectiveRegularity) * 0.18, 0.72, 0.96);
+                }
             } else {
                 detectedGenre = MusicGenre.AMBIENT;
                 confidence = 0.80f;
