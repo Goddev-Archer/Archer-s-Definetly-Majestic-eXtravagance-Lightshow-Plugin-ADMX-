@@ -218,7 +218,13 @@ public final class AdmxPlugin extends JavaPlugin implements Listener {
         this.artNetBridgeManager = new de.archer.admx.artnet.ArtNetBridgeManager(this);
         this.artNetBridgeManager.start();
 
-        de.archer.admx.boiler.AdmxBoilerIntegration.initialize(this);
+        try {
+            if (Bukkit.getPluginManager().isPluginEnabled("Boiler")) {
+                de.archer.admx.boiler.AdmxBoilerIntegration.initialize(this);
+            }
+        } catch (Throwable t) {
+            getLogger().info("[ADMX] Boiler ist nicht verfügbar (optionale Integration übersprungen).");
+        }
 
         Bukkit.getScheduler().runTaskTimer(this, this::onRenderTick, 1L, 1L);
 

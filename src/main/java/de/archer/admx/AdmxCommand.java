@@ -105,8 +105,9 @@ public final class AdmxCommand implements BasicCommand {
                 player.sendMessage(Component.text("✘ Keine Berechtigung für das Boiler Desktop-UI (admx.console).", NamedTextColor.RED));
                 return;
             }
-            if (!de.archer.admx.boiler.AdmxBoilerIntegration.isBoilerAvailable()) {
-                player.sendMessage(Component.text("✘ Das Boiler-Plugin ist auf diesem Server aktuell nicht aktiv.", NamedTextColor.RED));
+            if (!org.bukkit.Bukkit.getPluginManager().isPluginEnabled("Boiler")
+                    || !de.archer.admx.boiler.AdmxBoilerIntegration.isBoilerAvailable()) {
+                player.sendMessage(Component.text("✘ Das optionale Boiler-Plugin ist auf diesem Server aktuell nicht aktiv.", NamedTextColor.RED));
                 return;
             }
             String sub = args.length > 1 ? args[1].toLowerCase() : "spawn";

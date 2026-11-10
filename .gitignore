@@ -1,6 +1,11 @@
-.gradle
-build
-.agents
-.vscode
-cache
-.idea
+.gradle/
+build/
+bin/
+cache/
+.agents/
+.vscode/
+.idea/
+*.log
+temp_*
+target/
+node_modules/

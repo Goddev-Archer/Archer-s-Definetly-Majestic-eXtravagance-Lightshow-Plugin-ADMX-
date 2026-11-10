@@ -754,6 +754,10 @@ public final class DmxWorkstationUi implements Listener {
         }
         if (slot == 51) {
             player.closeInventory();
+            if (!org.bukkit.Bukkit.getPluginManager().isPluginEnabled("Boiler")) {
+                player.sendMessage(Component.text("✘ Das optionale Boiler-Plugin ist auf diesem Server aktuell nicht aktiv.", NamedTextColor.RED));
+                return;
+            }
             int id = de.archer.admx.boiler.AdmxBoilerIntegration.spawnDesktopDisplayInFrontOfPlayer(player, 4, 2, session.universeId());
             if (id >= 0) {
                 player.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 0.8f, 1.5f);
